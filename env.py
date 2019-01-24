@@ -132,35 +132,62 @@ class Exchange(object):
         PUSH = 1
 
     class Positions:
-        unit = 100
 
-        def __init__(self, symbol):
+        def __init__(self, symbol=''):
             self.symbol = symbol
             self.amount = 0
-            self.value = 0
             self.avg_price = 0
 
-        def update(self, action, latest_price):
-            self.amount += action * self.unit
-            self.value += action * self.unit * latest_price
-            self.avg_price = self.value / self.amount if self.amount else 0
+        @property
+        def principal(self):
+            return self.avg_price * self.amount
 
-        def get_profit(self, latest_price):
-            if self.amount == 0:
+        @property
+        def is_empty(self):
+            return self.amount == 0
+
+        @property
+        def is_do_long(self):
+            return self.amount > 0
+
+        @property
+        def is_do_short(self):
+            return self.amount < 0
+
+        def get_profit(self, latest_price, unit):
+            if self.is_empty:
                 return 0
             else:
                 diff = 0
-                if self.amount < 0:
+                if self.is_do_short:
                     diff = abs(self.avg_price) - latest_price
                 else:
                     diff = latest_price - abs(self.avg_price)
-                profit = diff * self.amount
+                profit = diff * unit
                 return profit
 
+        def update(self, action, latest_price, unit):
+            if action * self.amount < 0:
+                profit = self.get_profit(latest_price, unit)
+            else:
+                profit = 0
+
+            amount = action * unit
+            if self.amount + amount != 0:
+                self.avg_price = (self.avg_price * self.amount +
+                                  amount * latest_price) / (self.amount + amount)
+            else:
+                self.avg_price = 0
+            self.amount += amount
+
+            return profit
+
     def __init__(self, nav=50000):
-        self.positions = {}
+        self.position = self.Positions()
         self.nav = nav
-        self.profit = 0
+        self.fixed_profit = 0
+        self.floating_profit = 0
+        self.unit = 100
 
     @property
     def start_action(self):
@@ -168,11 +195,24 @@ class Exchange(object):
 
     @property
     def available_funds(self):
-        positions = self.positions.values()
-        return self.nav - sum([abs(position.value) for position in positions])
+        return self.nav - self.position.principal
 
-    def _get_position(self, symbol):
-        return self.positions.get(symbol, self.Positions(symbol))
+    @property
+    def profit(self):
+        return self.fixed_profit + self.floating_profit
+
+    @property
+    def available_actions(self):
+        if self.position.is_do_short:
+            return [self.ACTION.PUSH, self.ACTION.HOLD]
+        elif self.position.is_do_long:
+            return [self.ACTION.PUT, self.ACTION.HOLD]
+        else:
+            return [self.ACTION.PUT, self.ACTION.HOLD, self.ACTION.PUSH]
+
+    @property
+    def cost_action(self):
+        return [self.ACTION.PUT, self.ACTION.PUSH]
 
     def get_profit(self, observation, symbol='default'):
         latest_price = observation.latest_price
@@ -181,13 +221,46 @@ class Exchange(object):
             latest_price) for position in positions])
         return self.profit + positions_profite
 
+    def draw_title(self, observation):
+        formatting = """
+        profit: {} \t fixed-profit: {} \t floating-profit:{} \t
+        amount: {} \t latest-price: {} \t time: {} \n
+        """
+
+        def r(x): return round(x, 2)
+        title = formatting.format(r(self.profit), r(self.fixed_profit),
+                                  r(self.floating_profit), self.position.amount,
+                                  observation.latest_price,
+                                  observation.date_string)
+        plt.suptitle(title)
+
+    def get_charge(self, action, observation):
+        """
+            rewrite if inneed.
+        """
+        return 3
+
     def step(self, action, observation, symbol='default'):
         latest_price = observation.latest_price
-        position = self._get_position(symbol)
-        profit = position.get_profit(latest_price)
-        position.update(action, latest_price)
-        self.positions.update({symbol: position})
-        self.profit += profit
+
+        if action in self.available_actions:
+            fixed_profit = self.position.update(
+                action, latest_price, self.unit)
+        else:
+            fixed_profit = 0
+        if action in self.cost_action:
+            fixed_profit -= self.get_charge(action, observation)
+        self.floating_profit = self.position.get_profit(
+            latest_price, self.unit)
+        self.fixed_profit += fixed_profit
+
+        self.draw_title(observation)
+        logger.debug("observation:{} action:{}".format(observation, action))
+        print("observation:{} action:{}".format(observation, action))
+        logger.debug("fixed_profit: {}, floating_profit: {}".format(
+            fixed_profit, self.floating_profit))
+        print("fixed_profit: {}, floating_profit: {}, profit: {}".format(
+            fixed_profit, self.floating_profit, self.profit))
         return self.profit
 
 
@@ -290,9 +363,9 @@ class TradeEnv(GoalEnv):
 
     def _step(self, action):
         observation, done = self.data.step()
-        info = self.exchange.step(action, observation)
-        self._render.take_action(action, observation)
-        reward = self.compute_reward(observation)
+        if action in self.exchange.available_actions:
+            self._render.take_action(action, observation)
+        reward = self.exchange.step(action, observation)
         return observation, reward, done
 
     def step(self, action):
@@ -303,10 +376,6 @@ class TradeEnv(GoalEnv):
 
     def reset(self):
         return self.step(self.exchange.start_action)
-
-    def compute_reward(self, observation):
-        reward = self.exchange.get_profit(observation)
-        return reward
 
     def render(self):
         history = self.data.history
