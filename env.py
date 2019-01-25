@@ -67,7 +67,10 @@ class Observation(object):
 
 class DataManager(object):
 
-    def __init__(self, data, data_path, data_func, previous_steps):
+    def __init__(self, data=None,
+                 data_path=None,
+                 data_func=None,
+                 previous_steps=None):
         if data is not None:
             if isinstance(data, list):
                 data = data
@@ -101,9 +104,9 @@ class DataManager(object):
 
     def load_data(self, path=None):
         filename, extension = os.path.splitext(path)
-        if extension == 'json':
+        if extension == '.json':
             data = self._load_json(path)
-        return data.values()
+        return data
 
     @property
     def current_step(self):
@@ -182,12 +185,13 @@ class Exchange(object):
 
             return profit
 
-    def __init__(self, nav=50000):
+    def __init__(self, nav=50000, end_loss=None):
         self.position = self.Positions()
         self.nav = nav
         self.fixed_profit = 0
         self.floating_profit = 0
         self.unit = 100
+        self._end_loss = end_loss
 
     @property
     def start_action(self):
@@ -214,6 +218,16 @@ class Exchange(object):
     def cost_action(self):
         return [self.ACTION.PUT, self.ACTION.PUSH]
 
+    @property
+    def end_loss(self):
+        if self._end_loss is not None:
+            return self._end_loss
+        return - self.latest_price * self.unit * 0.3
+
+    @property
+    def is_over_loss(self):
+        return self.profit < self.end_loss
+
     def get_profit(self, observation, symbol='default'):
         latest_price = observation.latest_price
         positions = self.positions.values()
@@ -228,8 +242,10 @@ class Exchange(object):
         """
 
         def r(x): return round(x, 2)
-        title = formatting.format(r(self.profit), r(self.fixed_profit),
-                                  r(self.floating_profit), self.position.amount,
+        title = formatting.format(r(self.profit),
+                                  r(self.fixed_profit),
+                                  r(self.floating_profit),
+                                  self.position.amount,
                                   observation.latest_price,
                                   observation.date_string)
         plt.suptitle(title)
@@ -242,6 +258,7 @@ class Exchange(object):
 
     def step(self, action, observation, symbol='default'):
         latest_price = observation.latest_price
+        self.latest_price = latest_price
 
         if action in self.available_actions:
             fixed_profit = self.position.update(
@@ -258,9 +275,9 @@ class Exchange(object):
         logger.debug("observation:{} action:{}".format(observation, action))
         print("observation:{} action:{}".format(observation, action))
         logger.debug("fixed_profit: {}, floating_profit: {}".format(
-            fixed_profit, self.floating_profit))
+            self.fixed_profit, self.floating_profit))
         print("fixed_profit: {}, floating_profit: {}, profit: {}".format(
-            fixed_profit, self.floating_profit, self.profit))
+            self.fixed_profit, self.floating_profit, self.profit))
         return self.profit
 
 
@@ -322,7 +339,7 @@ class Render(object):
             return ""
         return formator
 
-    def render(self, history):
+    def render(self, history, mode='human', close=False):
         """
             If it plot one by one will cache many point
             that will cause OOM and work slow.
@@ -366,6 +383,10 @@ class TradeEnv(GoalEnv):
         if action in self.exchange.available_actions:
             self._render.take_action(action, observation)
         reward = self.exchange.step(action, observation)
+
+        if self.exchange.is_over_loss:
+            done = True
+
         return observation, reward, done
 
     def step(self, action):
