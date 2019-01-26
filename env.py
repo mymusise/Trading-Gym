@@ -78,10 +78,17 @@ class History(object):
     def __init__(self, obs_list):
         self.__obs_list = obs_list
 
-    def to_array(self):
+    def normalize(self, base):
+        def __nor(array):
+            return [(x - base) / base for x in array]
+        return __nor
+
+    def to_array(self, base):
         history = np.zeros([HISTORY_NUM + 1, FEATURE_NUM], dtype=float)
+        normalize_func = self.normalize(base)
         for i, obs in enumerate(self.__obs_list):
-            history[i] = obs.to_array()
+            data = obs.to_array()
+            history[i] = normalize_func(data)
         return history
 
 
@@ -129,6 +136,10 @@ class DataManager(object):
         if extension == '.json':
             data = self._load_json(path)
         return data
+
+    @property
+    def first_price(self):
+        return self.data[0].close
 
     @property
     def current_step(self):
@@ -217,7 +228,7 @@ class Exchange(object):
     def __init__(self, nav=50000, end_loss=None):
         self.nav = nav
         self._end_loss = end_loss
-        self.unit = 100
+        self.unit = 1000
         self.__init_data()
 
     def __init_data(self):
@@ -422,9 +433,12 @@ class TradeEnv(GoalEnv):
         if self.exchange.is_over_loss:
             done = True
 
+        # normalize
+        obs = self.data.recent_history.to_array(base=self.data.first_price)
+        reward /= self.data.first_price * self.exchange.unit
+
         logger.info("action: {}, observation: {}, reward:{}, done: {}".format(
             action, obs_latest, reward, done))
-        obs = self.data.recent_history.to_array()
         return obs, reward, done
 
     def step(self, action):
@@ -437,7 +451,7 @@ class TradeEnv(GoalEnv):
         self.data.reset()
         self.exchange.reset()
         self._render.reset()
-        observation, reward, done, info = self.step(self.exchange.start_action)
+        observation, reward, done = self._step(self.exchange.start_action)
         return observation
 
     def render(self):

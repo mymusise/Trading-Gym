@@ -29,16 +29,16 @@ def test_render():
 
 
 def test_train(retrain=False):
-    from stable_baselines.common.policies import MlpPolicy
+    from stable_baselines.common.policies import MlpLstmPolicy
     from stable_baselines.common.vec_env import DummyVecEnv
     from stable_baselines import A2C
 
     env = TradeEnv(data_path='/data/money/source_minute.json')
     env = DummyVecEnv([lambda: env])
-    model = A2C(MlpPolicy, env, ent_coef=0.1, verbose=1)
+    model = A2C(MlpLstmPolicy, env, ent_coef=0.1, verbose=1, policy_kwargs={'n_lstm': 10})
 
     if retrain:
-        model.learn(total_timesteps=100000)
+        model.learn(total_timesteps=1000000)
         model.save("a2c_trading")
 
     init_logger()
