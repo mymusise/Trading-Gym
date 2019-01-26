@@ -2,12 +2,13 @@ import os
 import json
 import types
 import datetime
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import numpy as np
 from matplotlib.ticker import FuncFormatter
 from mpl_finance import candlestick_ochl
 from gym.core import GoalEnv
+from gym import spaces
 import logging
 
 
@@ -126,6 +127,9 @@ class DataManager(object):
         done = self.index >= self.max_steps
         return observation, done
 
+    def reset(self):
+        self.index = 0
+
 
 class Exchange(object):
 
@@ -186,12 +190,15 @@ class Exchange(object):
             return profit
 
     def __init__(self, nav=50000, end_loss=None):
-        self.position = self.Positions()
         self.nav = nav
+        self._end_loss = end_loss
+        self.unit = 100
+        self.__init_data()
+
+    def __init_data(self):
+        self.position = self.Positions()
         self.fixed_profit = 0
         self.floating_profit = 0
-        self.unit = 100
-        self._end_loss = end_loss
 
     @property
     def start_action(self):
@@ -263,22 +270,22 @@ class Exchange(object):
         if action in self.available_actions:
             fixed_profit = self.position.update(
                 action, latest_price, self.unit)
+            if action in self.cost_action:
+                fixed_profit -= self.get_charge(action, observation)
         else:
             fixed_profit = 0
-        if action in self.cost_action:
-            fixed_profit -= self.get_charge(action, observation)
         self.floating_profit = self.position.get_profit(
             latest_price, self.unit)
         self.fixed_profit += fixed_profit
 
         self.draw_title(observation)
-        logger.debug("observation:{} action:{}".format(observation, action))
-        print("observation:{} action:{}".format(observation, action))
-        logger.debug("fixed_profit: {}, floating_profit: {}".format(
+        logger.info("observation:{} action:{}".format(observation, action))
+        logger.info("fixed_profit: {}, floating_profit: {}".format(
             self.fixed_profit, self.floating_profit))
-        print("fixed_profit: {}, floating_profit: {}, profit: {}".format(
-            self.fixed_profit, self.floating_profit, self.profit))
         return self.profit
+
+    def reset(self):
+        self.__init_data()
 
 
 class Arrow(object):
@@ -358,6 +365,10 @@ class Render(object):
         plt.show()
         plt.pause(0.0001)
 
+    def reset(self):
+        self.ax.clear()
+        self.arrows = []
+
 
 class TradeEnv(GoalEnv):
 
@@ -367,16 +378,13 @@ class TradeEnv(GoalEnv):
                  data_func=None,
                  previous_steps=60,
                  max_episode=200):
-        self.init_env_fn = self.__init_env_fn(
-            data, data_path, data_func, previous_steps)
-        self.init_env_fn()
+        self.data = DataManager(data, data_path, data_func, previous_steps)
+        self.exchange = Exchange()
+        self._render = Render()
 
-    def __init_env_fn(self, data, data_path, data_func, previous_steps):
-        def init():
-            self.data = DataManager(data, data_path, data_func, previous_steps)
-            self.exchange = Exchange()
-            self._render = Render()
-        return init
+        self.action_space = spaces.Discrete(3)
+        self.observation_space = spaces.Box(low=0, high=255,
+                                            shape=(5,), dtype=np.uint8)
 
     def _step(self, action):
         observation, done = self.data.step()
@@ -387,7 +395,9 @@ class TradeEnv(GoalEnv):
         if self.exchange.is_over_loss:
             done = True
 
-        return observation, reward, done
+        logger.info("action: {}, observation: {}, reward:{}, done: {}".format(
+            action, observation, reward, done))
+        return observation.to_list(), reward, done
 
     def step(self, action):
         observation, reward, done = self._step(action)
@@ -396,7 +406,11 @@ class TradeEnv(GoalEnv):
         return observation, reward, done, info
 
     def reset(self):
-        return self.step(self.exchange.start_action)
+        self.data.reset()
+        self.exchange.reset()
+        self._render.reset()
+        observation, reward, done, info = self.step(self.exchange.start_action)
+        return observation
 
     def render(self):
         history = self.data.history
