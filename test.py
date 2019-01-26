@@ -41,6 +41,7 @@ def test_train(retrain=False):
         model.learn(total_timesteps=100000)
         model.save("a2c_trading")
 
+    init_logger()
     obs = env.reset()
     for i in range(2000):
         action, _states = model.predict(obs)
@@ -50,4 +51,4 @@ def test_train(retrain=False):
 
 if __name__ == '__main__':
     # test_render()
-    test_train()
+    test_train(True)

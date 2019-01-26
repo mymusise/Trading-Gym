@@ -14,9 +14,12 @@ import logging
 
 logger = logging.getLogger('gym-trading')
 
+HISTORY_NUM = 5
+FEATURE_NUM = 5
+
 
 class Observation(object):
-    __slots__ = ["open", "close", "high", "low", "index",
+    __slots__ = ["open", "close", "high", "low", "index", "volume",
                  "date", "date_string", "format_string"]
 
     def __init__(self, **kwargs):
@@ -25,6 +28,7 @@ class Observation(object):
         self.close = kwargs.get('close', 0)
         self.high = kwargs.get('high', 0)
         self.low = kwargs.get('low', 0)
+        self.volume = kwargs.get('volume', 0)
         self.date_string = kwargs.get('date', '')
         self.date = self._format_time(self.date_string)
 
@@ -57,6 +61,9 @@ class Observation(object):
     def to_list(self):
         return [self.index] + self.to_ochl()
 
+    def to_array(self):
+        return np.array(self.to_ochl() + [self.volume / 10000])
+
     def __str__(self):
         return "date: {self.date}, open: {self.open}, close:{self.close}," \
             " high: {self.high}, low: {self.low}".format(self=self)
@@ -66,12 +73,25 @@ class Observation(object):
         return self.close
 
 
+class History(object):
+
+    def __init__(self, obs_list):
+        self.__obs_list = obs_list
+
+    def to_array(self):
+        history = np.zeros([HISTORY_NUM + 1, FEATURE_NUM], dtype=float)
+        for i, obs in enumerate(self.__obs_list):
+            history[i] = obs.to_array()
+        return history
+
+
 class DataManager(object):
 
     def __init__(self, data=None,
                  data_path=None,
                  data_func=None,
-                 previous_steps=None):
+                 previous_steps=None,
+                 history_num=HISTORY_NUM):
         if data is not None:
             if isinstance(data, list):
                 data = data
@@ -89,6 +109,7 @@ class DataManager(object):
         self.data = list(self._to_observations(data))
         self.index = 0
         self.max_steps = len(self.data)
+        self.history_num = history_num
 
     def _to_observations(self, data):
         for i, item in enumerate(data):
@@ -116,6 +137,10 @@ class DataManager(object):
     @property
     def history(self):
         return self.data[:self.index]
+
+    @property
+    def recent_history(self):
+        return History(self.data[self.index - self.history_num:self.index + 1])
 
     @property
     def total(self):
@@ -384,24 +409,27 @@ class TradeEnv(GoalEnv):
 
         self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(low=0, high=255,
-                                            shape=(5,), dtype=np.uint8)
+                                            shape=(HISTORY_NUM +
+                                                   1, FEATURE_NUM),
+                                            dtype=np.uint8)
 
     def _step(self, action):
-        observation, done = self.data.step()
+        obs_latest, done = self.data.step()
         if action in self.exchange.available_actions:
-            self._render.take_action(action, observation)
-        reward = self.exchange.step(action, observation)
+            self._render.take_action(action, obs_latest)
+        reward = self.exchange.step(action, obs_latest)
 
         if self.exchange.is_over_loss:
             done = True
 
         logger.info("action: {}, observation: {}, reward:{}, done: {}".format(
-            action, observation, reward, done))
-        return observation.to_list(), reward, done
+            action, obs_latest, reward, done))
+        obs = self.data.recent_history.to_array()
+        return obs, reward, done
 
     def step(self, action):
+        action = action - 1
         observation, reward, done = self._step(action)
-
         info = {}
         return observation, reward, done, info
 
