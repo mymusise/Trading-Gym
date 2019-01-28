@@ -2,6 +2,7 @@ import os
 import json
 import types
 import datetime
+import random
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
@@ -14,8 +15,8 @@ import logging
 
 logger = logging.getLogger('gym-trading')
 
-HISTORY_NUM = 5
-FEATURE_NUM = 5
+HISTORY_NUM = 15
+FEATURE_NUM = 6
 
 
 class Observation(object):
@@ -35,6 +36,10 @@ class Observation(object):
     @property
     def math_date(self):
         return mdates.date2num(self.date)
+
+    @property
+    def math_hour(self):
+        return self.date.hour * 100 + self.date.minute
 
     def _format_time(self, date):
         d_f = date.count('-')
@@ -62,7 +67,7 @@ class Observation(object):
         return [self.index] + self.to_ochl()
 
     def to_array(self):
-        return np.array(self.to_ochl() + [self.volume / 10000])
+        return np.array(self.to_ochl() + [self.volume / 10000, self.math_hour / 10000])
 
     def __str__(self):
         return "date: {self.date}, open: {self.open}, close:{self.close}," \
@@ -84,6 +89,7 @@ class History(object):
         return __nor
 
     def to_array(self, base):
+        base = self.__obs_list[-1].close if self.__obs_list else 0
         history = np.zeros([HISTORY_NUM + 1, FEATURE_NUM], dtype=float)
         normalize_func = self.normalize(base)
         for i, obs in enumerate(self.__obs_list):
@@ -164,7 +170,7 @@ class DataManager(object):
         return observation, done
 
     def reset(self):
-        self.index = 0
+        self.index = random.randint(0, int(self.max_steps * 0.8))
 
 
 class Exchange(object):
@@ -265,7 +271,7 @@ class Exchange(object):
     def end_loss(self):
         if self._end_loss is not None:
             return self._end_loss
-        return - self.latest_price * self.unit * 0.3
+        return - self.latest_price * self.unit * 0.05
 
     @property
     def is_over_loss(self):
@@ -333,13 +339,13 @@ class Arrow(object):
 
 class Render(object):
 
-    def __init__(self, bar_width=0.5):
+    def __init__(self, bar_width=0.8):
         plt.ion()
         self.figure, self.ax = plt.subplots()
         self.figure.set_size_inches((12, 6))
-        self.bar_width = 0.5
+        self.bar_width = 0.8
         self.arrow_body_len = self.bar_width / 1000
-        self.arrow_head_len = self.bar_width / 50
+        self.arrow_head_len = self.bar_width / 20
         self.arrow_width = self.bar_width
         self.max_windows = 60
 
@@ -435,10 +441,10 @@ class TradeEnv(GoalEnv):
 
         # normalize
         obs = self.data.recent_history.to_array(base=self.data.first_price)
-        reward /= self.data.first_price * self.exchange.unit
+        reward /= self.exchange.unit
 
         logger.info("action: {}, observation: {}, reward:{}, done: {}".format(
-            action, obs_latest, reward, done))
+            action, obs, reward, done))
         return obs, reward, done
 
     def step(self, action):

@@ -2,3 +2,4 @@
 *.log
 logs/*
 *.pkl
+*.pytest_cache
