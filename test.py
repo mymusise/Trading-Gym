@@ -33,26 +33,25 @@ def test_render():
 def test_train(retrain):
     from stable_baselines.common.policies import MlpPolicy
     from stable_baselines.common.vec_env import DummyVecEnv
-    from stable_baselines import A2C
+    from stable_baselines import PPO2
 
-    env = TradeEnv(data_path='/data/money/source_minute.json')
-    # env = TradeEnv(data_path='/data/money/fake_sin_data.json')
+    # env = TradeEnv(data_path='/data/money/source_minute.json')
+    env = TradeEnv(data_path='/data/money/fake_sin_data.json')
     env = DummyVecEnv([lambda: env])
-    model = A2C(MlpPolicy, env, ent_coef=0.1,
-                verbose=1)
+    model = PPO2(MlpPolicy, env)
 
     if retrain:
-        model.learn(total_timesteps=1000000)
+        model.learn(total_timesteps=20000)
         model.save("a2c_trading")
 
-    model = A2C.load("a2c_trading")
+    model = PPO2.load("a2c_trading")
 
     init_logger()
     obs = env.reset()
     for i in range(2000):
         action, _states = model.predict(obs)
         obs, rewards, dones, info = env.step(action)
-        # env.render()
+        env.render()
         if dones:
             break
 

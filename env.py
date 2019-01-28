@@ -16,12 +16,13 @@ import logging
 logger = logging.getLogger('gym-trading')
 
 HISTORY_NUM = 15
-FEATURE_NUM = 6
+FEATURE_NUM = 7
 
 
 class Observation(object):
     __slots__ = ["open", "close", "high", "low", "index", "volume",
                  "date", "date_string", "format_string"]
+    N = 6
 
     def __init__(self, **kwargs):
         self.index = kwargs.get('index', 0)
@@ -90,7 +91,7 @@ class History(object):
 
     def to_array(self, base):
         base = self.__obs_list[-1].close if self.__obs_list else 0
-        history = np.zeros([HISTORY_NUM + 1, FEATURE_NUM], dtype=float)
+        history = np.zeros([HISTORY_NUM + 1, Observation.N], dtype=float)
         normalize_func = self.normalize(base)
         for i, obs in enumerate(self.__obs_list):
             data = obs.to_array()
@@ -277,6 +278,10 @@ class Exchange(object):
     def is_over_loss(self):
         return self.profit < self.end_loss
 
+    @property
+    def amount(self):
+        return self.position.amount / self.unit
+
     def get_profit(self, observation, symbol='default'):
         latest_price = observation.latest_price
         positions = self.positions.values()
@@ -316,6 +321,7 @@ class Exchange(object):
                 fixed_profit -= self.get_charge(action, observation)
         else:
             fixed_profit = 0
+        fixed_profit -= 0.2  # make it action
         self.floating_profit = self.position.get_profit(
             latest_price, self.unit)
         self.fixed_profit += fixed_profit
@@ -442,9 +448,10 @@ class TradeEnv(GoalEnv):
         # normalize
         obs = self.data.recent_history.to_array(base=self.data.first_price)
         reward /= self.exchange.unit
+        amount = self.exchange.amount
+        amount = np.ones([HISTORY_NUM + 1, 1]) * amount
+        obs = np.concatenate((obs, amount), axis=1)
 
-        logger.info("action: {}, observation: {}, reward:{}, done: {}".format(
-            action, obs, reward, done))
         return obs, reward, done
 
     def step(self, action):
@@ -458,6 +465,8 @@ class TradeEnv(GoalEnv):
         self.exchange.reset()
         self._render.reset()
         observation, reward, done = self._step(self.exchange.start_action)
+
+        logger.info("observation: {}".format(observation))
         return observation
 
     def render(self):
