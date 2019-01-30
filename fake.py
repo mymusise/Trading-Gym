@@ -4,7 +4,7 @@ import json
 import datetime
 
 
-def get_sin_data(add_noise=False):
+def get_sin_data(add_noise=True):
     Fs = 200
     f = 5
     sample = 8000

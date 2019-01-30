@@ -16,13 +16,13 @@ import logging
 logger = logging.getLogger('gym-trading')
 
 HISTORY_NUM = 15
-FEATURE_NUM = 7
+FEATURE_NUM = 6
 
 
 class Observation(object):
     __slots__ = ["open", "close", "high", "low", "index", "volume",
                  "date", "date_string", "format_string"]
-    N = 6
+    N = 5
 
     def __init__(self, **kwargs):
         self.index = kwargs.get('index', 0)
@@ -68,7 +68,7 @@ class Observation(object):
         return [self.index] + self.to_ochl()
 
     def to_array(self):
-        return np.array(self.to_ochl() + [self.volume / 10000, self.math_hour / 10000])
+        return np.array(self.to_ochl() + [self.volume / 10000], dtype=float)
 
     def __str__(self):
         return "date: {self.date}, open: {self.open}, close:{self.close}," \
@@ -90,7 +90,6 @@ class History(object):
         return __nor
 
     def to_array(self, base):
-        base = self.__obs_list[-1].close if self.__obs_list else 0
         history = np.zeros([HISTORY_NUM + 1, Observation.N], dtype=float)
         normalize_func = self.normalize(base)
         for i, obs in enumerate(self.__obs_list):
@@ -235,7 +234,7 @@ class Exchange(object):
     def __init__(self, nav=50000, end_loss=None):
         self.nav = nav
         self._end_loss = end_loss
-        self.unit = 1000
+        self.unit = 100
         self.__init_data()
 
     def __init_data(self):
@@ -272,7 +271,7 @@ class Exchange(object):
     def end_loss(self):
         if self._end_loss is not None:
             return self._end_loss
-        return - self.latest_price * self.unit * 0.05
+        return - self.latest_price * self.unit * 0.2
 
     @property
     def is_over_loss(self):
@@ -321,7 +320,7 @@ class Exchange(object):
                 fixed_profit -= self.get_charge(action, observation)
         else:
             fixed_profit = 0
-        fixed_profit -= 0.2  # make it action
+        # fixed_profit -= 0.2  # make it action
         self.floating_profit = self.position.get_profit(
             latest_price, self.unit)
         self.fixed_profit += fixed_profit
@@ -431,10 +430,10 @@ class TradeEnv(GoalEnv):
         self._render = Render()
 
         self.action_space = spaces.Discrete(3)
-        self.observation_space = spaces.Box(low=0, high=255,
+        self.observation_space = spaces.Box(low=-1, high=1,
                                             shape=(HISTORY_NUM +
                                                    1, FEATURE_NUM),
-                                            dtype=np.uint8)
+                                            dtype=np.float32)
 
     def _step(self, action):
         obs_latest, done = self.data.step()
