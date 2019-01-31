@@ -15,14 +15,14 @@ import logging
 
 logger = logging.getLogger('gym-trading')
 
-HISTORY_NUM = 15
-FEATURE_NUM = 6
+HISTORY_NUM = 20
+FEATURE_NUM = 8
 
 
 class Observation(object):
     __slots__ = ["open", "close", "high", "low", "index", "volume",
                  "date", "date_string", "format_string"]
-    N = 5
+    N = 6
 
     def __init__(self, **kwargs):
         self.index = kwargs.get('index', 0)
@@ -67,8 +67,9 @@ class Observation(object):
     def to_list(self):
         return [self.index] + self.to_ochl()
 
-    def to_array(self):
-        return np.array(self.to_ochl() + [self.volume / 10000], dtype=float)
+    def to_array(self, extend):
+        volume = self.volume / 10000
+        return np.array(self.to_ochl() + [volume] + extend, dtype=float)
 
     def __str__(self):
         return "date: {self.date}, open: {self.open}, close:{self.close}," \
@@ -89,11 +90,11 @@ class History(object):
             return [(x - base) / base for x in array]
         return __nor
 
-    def to_array(self, base):
+    def to_array(self, base, extend=[]):
         history = np.zeros([HISTORY_NUM + 1, Observation.N], dtype=float)
         normalize_func = self.normalize(base)
         for i, obs in enumerate(self.__obs_list):
-            data = obs.to_array()
+            data = obs.to_array(extend=extend)
             history[i] = normalize_func(data)
         return history
 
@@ -186,6 +187,7 @@ class Exchange(object):
             self.symbol = symbol
             self.amount = 0
             self.avg_price = 0
+            self.created_index = 0
 
         @property
         def principal(self):
@@ -215,7 +217,9 @@ class Exchange(object):
                 profit = diff * unit
                 return profit
 
-        def update(self, action, latest_price, unit):
+        def update(self, action, latest_price, unit, index):
+            if action != 0 and self.amount == 0:
+                self.created_index = index
             if action * self.amount < 0:
                 profit = self.get_profit(latest_price, unit)
             else:
@@ -227,14 +231,14 @@ class Exchange(object):
                                   amount * latest_price) / (self.amount + amount)
             else:
                 self.avg_price = 0
+                self.created_index = 0
             self.amount += amount
-
             return profit
 
     def __init__(self, nav=50000, end_loss=None):
         self.nav = nav
         self._end_loss = end_loss
-        self.unit = 100
+        self.unit = 1000
         self.__init_data()
 
     def __init_data(self):
@@ -315,12 +319,12 @@ class Exchange(object):
 
         if action in self.available_actions:
             fixed_profit = self.position.update(
-                action, latest_price, self.unit)
+                action, latest_price, self.unit, observation.index)
             if action in self.cost_action:
                 fixed_profit -= self.get_charge(action, observation)
         else:
             fixed_profit = 0
-        # fixed_profit -= 0.2  # make it action
+        # fixed_profit -= 1.5  # make it action
         self.floating_profit = self.position.get_profit(
             latest_price, self.unit)
         self.fixed_profit += fixed_profit
@@ -445,10 +449,14 @@ class TradeEnv(GoalEnv):
             done = True
 
         # normalize
-        obs = self.data.recent_history.to_array(base=self.data.first_price)
+        obs = self.data.recent_history.to_array(
+            base=self.data.first_price,
+            extend=[self.exchange.position.avg_price])
         reward /= self.exchange.unit
         amount = self.exchange.amount
-        amount = np.ones([HISTORY_NUM + 1, 1]) * amount
+        index = self.exchange.position.created_index / self.data.max_steps
+        extends = [amount, index]
+        amount = np.ones([HISTORY_NUM + 1, len(extends)]) * extends
         obs = np.concatenate((obs, amount), axis=1)
 
         return obs, reward, done
