@@ -40,7 +40,7 @@ class Observation(object):
 
     @property
     def math_hour(self):
-        return self.date.hour * 100 + self.date.minute
+        return (self.date.hour * 100 + self.date.minute) / 2500
 
     def _format_time(self, date):
         d_f = date.count('-')
@@ -69,7 +69,8 @@ class Observation(object):
 
     def to_array(self, extend):
         volume = self.volume / 10000
-        return np.array(self.to_ochl() + [volume] + extend, dtype=float)
+        extend = [volume] + extend
+        return np.array(self.to_ochl() + extend, dtype=float)
 
     def __str__(self):
         return "date: {self.date}, open: {self.open}, close:{self.close}," \
@@ -91,6 +92,7 @@ class History(object):
         return __nor
 
     def to_array(self, base, extend=[]):
+        # base = self.__obs_list[-1].close if self.__obs_list else 1
         history = np.zeros([HISTORY_NUM + 1, Observation.N], dtype=float)
         normalize_func = self.normalize(base)
         for i, obs in enumerate(self.__obs_list):
@@ -170,8 +172,11 @@ class DataManager(object):
         done = self.index >= self.max_steps
         return observation, done
 
-    def reset(self):
-        self.index = random.randint(0, int(self.max_steps * 0.8))
+    def reset(self, index=None):
+        if index is None:
+            self.index = random.randint(0, int(self.max_steps * 0.8))
+        else:
+            self.index = index
 
 
 class Exchange(object):
@@ -209,12 +214,13 @@ class Exchange(object):
             if self.is_empty:
                 return 0
             else:
-                diff = 0
+                rate = 0
                 if self.is_do_short:
                     diff = abs(self.avg_price) - latest_price
                 else:
                     diff = latest_price - abs(self.avg_price)
-                profit = diff * unit
+                rate = diff / self.avg_price
+                profit = rate * unit
                 return profit
 
         def update(self, action, latest_price, unit, index):
@@ -235,10 +241,11 @@ class Exchange(object):
             self.amount += amount
             return profit
 
-    def __init__(self, nav=50000, end_loss=None):
+    def __init__(self, punished=False, nav=50000, end_loss=None, unit=5000):
         self.nav = nav
+        self.punished = punished
         self._end_loss = end_loss
-        self.unit = 1000
+        self.unit = unit
         self.__init_data()
 
     def __init_data(self):
@@ -268,6 +275,14 @@ class Exchange(object):
             return [self.ACTION.PUT, self.ACTION.HOLD, self.ACTION.PUSH]
 
     @property
+    def punished_action(self):
+        if self.position.is_do_short:
+            return self.ACTION.PUT
+        elif self.position.is_do_long:
+            return self.ACTION.PUSH
+        return None
+
+    @property
     def cost_action(self):
         return [self.ACTION.PUT, self.ACTION.PUSH]
 
@@ -275,7 +290,7 @@ class Exchange(object):
     def end_loss(self):
         if self._end_loss is not None:
             return self._end_loss
-        return - self.latest_price * self.unit * 0.2
+        return - self.observation.latest_price * self.unit * 0.2
 
     @property
     def is_over_loss(self):
@@ -292,21 +307,6 @@ class Exchange(object):
             latest_price) for position in positions])
         return self.profit + positions_profite
 
-    def draw_title(self, observation):
-        formatting = """
-        profit: {} \t fixed-profit: {} \t floating-profit:{} \t
-        amount: {} \t latest-price: {} \t time: {} \n
-        """
-
-        def r(x): return round(x, 2)
-        title = formatting.format(r(self.profit),
-                                  r(self.fixed_profit),
-                                  r(self.floating_profit),
-                                  self.position.amount,
-                                  observation.latest_price,
-                                  observation.date_string)
-        plt.suptitle(title)
-
     def get_charge(self, action, observation):
         """
             rewrite if inneed.
@@ -314,8 +314,8 @@ class Exchange(object):
         return 3
 
     def step(self, action, observation, symbol='default'):
+        self.observation = observation
         latest_price = observation.latest_price
-        self.latest_price = latest_price
 
         if action in self.available_actions:
             fixed_profit = self.position.update(
@@ -324,19 +324,38 @@ class Exchange(object):
                 fixed_profit -= self.get_charge(action, observation)
         else:
             fixed_profit = 0
-        # fixed_profit -= 1.5  # make it action
+        if self.punished:
+            # if action is self.punished_action:
+                # fixed_profit -= 1  # make it different
+            fixed_profit -= 0.8  # make it action
         self.floating_profit = self.position.get_profit(
             latest_price, self.unit)
         self.fixed_profit += fixed_profit
 
-        self.draw_title(observation)
         logger.info("observation:{} action:{}".format(observation, action))
         logger.info("fixed_profit: {}, floating_profit: {}".format(
             self.fixed_profit, self.floating_profit))
-        return self.profit
+        return self.profit / self.unit
 
     def reset(self):
         self.__init_data()
+
+    @property
+    def info(self):
+        return {
+            'index': self.observation.index,
+            'date': self.observation.date_string,
+            'unit': self.unit,
+            'amount': self.position.amount,
+            'avg_price': self.position.avg_price,
+            'profit': {
+                'total': self.profit,
+                'fixed': self.fixed_profit,
+                'floating': self.floating_profit
+            },
+            'buy_at': self.position.created_index,
+            'latest_price': self.observation.latest_price,
+        }
 
 
 class Arrow(object):
@@ -389,6 +408,21 @@ class Render(object):
 
         self.arrows = arrows
 
+    def draw_title(self, info):
+        formatting = """
+        profit: {} \t fixed-profit: {} \t floating-profit:{} \t
+        amount: {} \t latest-price: {} \t time: {} \n
+        """
+
+        def r(x): return round(x, 2)
+        title = formatting.format(r(info['profit']['total']),
+                                  r(info['profit']['fixed']),
+                                  r(info['profit']['floating']),
+                                  info['amount'],
+                                  r(info['latest_price']),
+                                  info['date'])
+        plt.suptitle(title)
+
     def xaxis_format(self, history):
         def formator(x, pos=None):
             for h in history:
@@ -397,7 +431,7 @@ class Render(object):
             return ""
         return formator
 
-    def render(self, history, mode='human', close=False):
+    def render(self, history, info, mode='human', close=False):
         """
             If it plot one by one will cache many point
             that will cause OOM and work slow.
@@ -413,6 +447,8 @@ class Render(object):
             FuncFormatter(self.xaxis_format(history)))
         self.ax.set_ylabel('price')
         self.figure.autofmt_xdate()
+
+        self.draw_title(info)
         plt.show()
         plt.pause(0.0001)
 
@@ -428,10 +464,14 @@ class TradeEnv(GoalEnv):
                  data_path=None,
                  data_func=None,
                  previous_steps=60,
-                 max_episode=200):
+                 max_episode=200,
+                 punished=False,
+                 unit=5000):
         self.data = DataManager(data, data_path, data_func, previous_steps)
-        self.exchange = Exchange()
+        self.exchange = Exchange(punished, unit)
         self._render = Render()
+
+        self.obs = None
 
         self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(low=-1, high=1,
@@ -439,46 +479,51 @@ class TradeEnv(GoalEnv):
                                                    1, FEATURE_NUM),
                                             dtype=np.float32)
 
+    def get_obs_with_history(self, info):
+        obs = self.data.recent_history.to_array(
+            base=self.data.first_price,
+            extend=[info['avg_price']])
+        amount = info['amount']
+        index = info['buy_at'] / self.data.max_steps
+        extends = [amount, index]
+        amount = np.ones([HISTORY_NUM + 1, len(extends)]) * extends
+        obs = np.concatenate((obs, amount), axis=1)
+        return obs
+
     def _step(self, action):
-        obs_latest, done = self.data.step()
+        if self.obs is None:
+            self.obs, done = self.data.step()
+
         if action in self.exchange.available_actions:
-            self._render.take_action(action, obs_latest)
-        reward = self.exchange.step(action, obs_latest)
+            self._render.take_action(action, self.obs)
+        reward = self.exchange.step(action, self.obs)
+        info = self.exchange.info
+
+        obs = self.get_obs_with_history(info)
+        self.obs, done = self.data.step()
 
         if self.exchange.is_over_loss:
             done = True
 
-        # normalize
-        obs = self.data.recent_history.to_array(
-            base=self.data.first_price,
-            extend=[self.exchange.position.avg_price])
-        reward /= self.exchange.unit
-        amount = self.exchange.amount
-        index = self.exchange.position.created_index / self.data.max_steps
-        extends = [amount, index]
-        amount = np.ones([HISTORY_NUM + 1, len(extends)]) * extends
-        obs = np.concatenate((obs, amount), axis=1)
-
-        return obs, reward, done
+        return obs, reward, done, info
 
     def step(self, action):
         action = action - 1
-        observation, reward, done = self._step(action)
-        info = {}
+        observation, reward, done, info = self._step(action)
         return observation, reward, done, info
 
-    def reset(self):
-        self.data.reset()
+    def reset(self, index=None):
+        self.data.reset(index)
         self.exchange.reset()
         self._render.reset()
-        observation, reward, done = self._step(self.exchange.start_action)
-
-        logger.info("observation: {}".format(observation))
+        observation, reward, done, info = self._step(
+            self.exchange.start_action)
         return observation
 
     def render(self):
         history = self.data.history
-        self._render.render(history)
+        info = self.exchange.info
+        self._render.render(history, info)
 
     def close(self):
         return
