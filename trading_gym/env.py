@@ -13,7 +13,7 @@ from gym import spaces
 import logging
 
 
-logger = logging.getLogger('gym-trading')
+logger = logging.getLogger('trading-gym')
 
 HISTORY_NUM = 20
 FEATURE_NUM = 8
@@ -327,7 +327,7 @@ class Exchange(object):
         if self.punished:
             # if action is self.punished_action:
                 # fixed_profit -= 1  # make it different
-            fixed_profit -= 0.8  # make it action
+            fixed_profit -= 1  # make it action
         self.floating_profit = self.position.get_profit(
             latest_price, self.unit)
         self.fixed_profit += fixed_profit

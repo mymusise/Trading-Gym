@@ -18,7 +18,7 @@ def get_sin_data(add_noise=True):
 
 
 def get_sin_linear_data():
-    n = 500
+    n = 8000
     x = np.arange(n)
     noise = (np.random.rand(n) - 0.5)
     y1 = (np.sin(2 * np.pi * x / 30) + noise) / 2
