@@ -11,4 +11,5 @@ setup(name='trading-gym',
       author_email='mymusise1@gmail.com',
       license='MIT',
       packages=['trading_gym'],
+      install_requires=requires,
       zip_safe=False)
