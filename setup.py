@@ -1,7 +1,12 @@
 from setuptools import setup
 
 
-requires = ["stable-baselines==2.4.0", "mpl-finance==0.10.0"]
+requires = [
+    "gym==0.10.9",
+    "numpy==1.14.5",
+    "matplotlib==3.0.2",
+    "mpl-finance==0.10.0",
+]
 
 setup(name='trading-gym',
       version='0.1.1',
