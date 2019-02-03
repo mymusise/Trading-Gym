@@ -1,3 +1,8 @@
+import sys
+
+sys.path.append("..")
+
+
 import logging
 from stable_baselines.common.vec_env import DummyVecEnv
 from trading_gym.env import TradeEnv
@@ -41,3 +46,5 @@ def train(data_path,
             env.render()
         if dones:
             break
+
+    print(info)

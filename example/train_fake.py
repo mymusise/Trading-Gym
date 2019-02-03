@@ -12,7 +12,7 @@ def test_fake(retrain, render):
           render=render,
           train_steps=50000,
           save_path='fake',
-          env_params={'punished': punished, 'unit': 10},
+          env_params={'punished': punished, 'unit': 1000},
           rl_model_params={'verbose': 1})
 
 
