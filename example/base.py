@@ -20,12 +20,13 @@ def train(data_path,
           render=False,
           train_steps=100000,
           save_path='model',
-          env_params={}):
+          env_params={},
+          rl_model_params={}):
     env = TradeEnv(data_path=data_path, **env_params)
     env = DummyVecEnv([lambda: env])
 
     if retrain:
-        model = RLModel(Policy, env)
+        model = RLModel(Policy, env, **rl_model_params)
         model.learn(total_timesteps=train_steps)
         model.save(save_path)
     else:
