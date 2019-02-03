@@ -10,9 +10,10 @@ def test_fake(retrain, render):
     train(data_path, DQN, MlpPolicy,
           retrain=retrain,
           render=render,
-          train_steps=500000,
+          train_steps=50000,
           save_path='fake',
-          env_params={'punished': punished, 'unit': 1000})
+          env_params={'punished': punished, 'unit': 10},
+          rl_model_params={'verbose': 1})
 
 
 if __name__ == '__main__':

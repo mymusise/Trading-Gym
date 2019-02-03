@@ -325,9 +325,10 @@ class Exchange(object):
         else:
             fixed_profit = 0
         if self.punished:
-            # if action is self.punished_action:
-                # fixed_profit -= 1  # make it different
-            fixed_profit -= 1  # make it action
+            if action is self.punished_action:
+                fixed_profit -= 1  # make it different
+            if self.position.is_empty:
+                fixed_profit -= 1  # make it action
         self.floating_profit = self.position.get_profit(
             latest_price, self.unit)
         self.fixed_profit += fixed_profit

@@ -2,14 +2,14 @@ from setuptools import setup
 
 
 requires = [
-    "gym==0.10.9",
-    "numpy==1.14.5",
-    "matplotlib==3.0.2",
-    "mpl-finance==0.10.0",
+    "gym",
+    "numpy",
+    "matplotlib",
+    "mpl-finance",
 ]
 
 setup(name='trading-gym',
-      version='0.1.1',
+      version='0.1.2',
       description='A gym tool for trading.',
       url='https://github.com/mymusise/Trading-Gym',
       author='mymusise',
