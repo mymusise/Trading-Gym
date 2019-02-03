@@ -10,7 +10,7 @@ def test_fake(retrain, render):
     train(data_path, DQN, MlpPolicy,
           retrain=retrain,
           render=render,
-          train_steps=50000,
+          train_steps=5000,
           save_path='fake',
           env_params={'punished': punished, 'unit': 1000},
           rl_model_params={'verbose': 1})

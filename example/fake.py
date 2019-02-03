@@ -61,8 +61,8 @@ def export(data):
 
 
 if __name__ == '__main__':
-    # x, y = get_sin_data()
-    x, y = get_sin_linear_data()
+    x, y = get_sin_data()
+    # x, y = get_sin_linear_data()
     data = list(warp_json_data(y))
     export(data)
     draw(x, y)

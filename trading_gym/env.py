@@ -290,7 +290,7 @@ class Exchange(object):
     def end_loss(self):
         if self._end_loss is not None:
             return self._end_loss
-        return - self.observation.latest_price * self.unit * 0.2
+        return - self.unit * 0.12
 
     @property
     def is_over_loss(self):
@@ -328,7 +328,7 @@ class Exchange(object):
             if action == self.punished_action:
                 fixed_profit -= 1  # make it different
             if action == 0:
-                fixed_profit -= 1  # make it action
+                fixed_profit -= 0.5  # make it action
         self.floating_profit = self.position.get_profit(
             latest_price, self.unit)
         self.fixed_profit += fixed_profit
@@ -496,6 +496,7 @@ class TradeEnv(GoalEnv):
         if self.obs is None:
             self.obs, done = self.data.step()
 
+        print(action)
         if action in self.exchange.available_actions:
             self._render.take_action(action, self.obs)
         reward = self.exchange.step(action, self.obs)
