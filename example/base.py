@@ -23,7 +23,7 @@ def train(data_path,
           Policy,
           retrain=False,
           render=False,
-          train_steps=100000,
+          train_steps=50000,
           save_path='model',
           env_params={},
           rl_model_params={}):
@@ -37,7 +37,6 @@ def train(data_path,
     else:
         model = RLModel.load(save_path)
 
-    init_logger()
     obs = env.reset()
     for i in range(5000):
         action, _states = model.predict(obs)
@@ -48,3 +47,4 @@ def train(data_path,
             break
 
     print(info)
+    return info

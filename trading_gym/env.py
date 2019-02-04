@@ -15,7 +15,7 @@ import logging
 
 logger = logging.getLogger('trading-gym')
 
-HISTORY_NUM = 20
+HISTORY_NUM = 50
 FEATURE_NUM = 8
 
 
@@ -84,7 +84,7 @@ class Observation(object):
 class History(object):
 
     def __init__(self, obs_list):
-        self.__obs_list = obs_list
+        self.obs_list = obs_list
 
     def normalize(self, base):
         def __nor(array):
@@ -92,10 +92,10 @@ class History(object):
         return __nor
 
     def to_array(self, base, extend=[]):
-        # base = self.__obs_list[-1].close if self.__obs_list else 1
+        # base = self.obs_list[-1].close if self.obs_list else 1
         history = np.zeros([HISTORY_NUM + 1, Observation.N], dtype=float)
         normalize_func = self.normalize(base)
-        for i, obs in enumerate(self.__obs_list):
+        for i, obs in enumerate(self.obs_list):
             data = obs.to_array(extend=extend)
             history[i] = normalize_func(data)
         return history
@@ -174,7 +174,7 @@ class DataManager(object):
 
     def reset(self, index=None):
         if index is None:
-            self.index = random.randint(0, int(self.max_steps * 0.8))
+            self.index = random.randint(HISTORY_NUM, int(self.max_steps * 0.8))
         else:
             self.index = index
 
@@ -290,7 +290,7 @@ class Exchange(object):
     def end_loss(self):
         if self._end_loss is not None:
             return self._end_loss
-        return - self.unit * 0.12
+        return - self.unit * 0.2
 
     @property
     def is_over_loss(self):
@@ -324,11 +324,11 @@ class Exchange(object):
                 fixed_profit -= self.get_charge(action, observation)
         else:
             fixed_profit = 0
-        if self.punished:
-            if action == self.punished_action:
-                fixed_profit -= 1  # make it different
-            if action == 0:
-                fixed_profit -= 0.5  # make it action
+        # if self.punished:
+        #     if action == self.punished_action:
+        #         fixed_profit -= 2  # make it different
+        #     if action == 0:
+        #         fixed_profit -= 2  # make it action
         self.floating_profit = self.position.get_profit(
             latest_price, self.unit)
         self.fixed_profit += fixed_profit
@@ -468,20 +468,35 @@ class TradeEnv(GoalEnv):
                  previous_steps=60,
                  max_episode=200,
                  punished=False,
-                 unit=5000):
+                 unit=5000,
+                 get_obs_features_func=None,
+                 ops_shape=None):
         self.data = DataManager(data, data_path, data_func, previous_steps)
         self.exchange = Exchange(punished=punished, unit=unit)
         self._render = Render()
+        self.get_obs_features_func = get_obs_features_func
+
+        if self.get_obs_features_func is not None:
+            if ops_shape is None:
+                raise ValueError(
+                    "ops_shape should be given if use get_obs_features_func")
+            self.ops_shape = ops_shape
+        else:
+            self.ops_shape = (HISTORY_NUM + 1, FEATURE_NUM)
 
         self.obs = None
 
         self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(low=-1, high=1,
-                                            shape=(HISTORY_NUM +
-                                                   1, FEATURE_NUM),
+                                            shape=self.ops_shape,
                                             dtype=np.float32)
 
     def get_obs_with_history(self, info):
+        history = self.data.recent_history
+
+        if self.get_obs_features_func is not None:
+            return self.get_obs_features_func(history, info)
+
         obs = self.data.recent_history.to_array(
             base=self.data.first_price,
             extend=[info['avg_price']])
@@ -496,7 +511,6 @@ class TradeEnv(GoalEnv):
         if self.obs is None:
             self.obs, done = self.data.step()
 
-        print(action)
         if action in self.exchange.available_actions:
             self._render.take_action(action, self.obs)
         reward = self.exchange.step(action, self.obs)
