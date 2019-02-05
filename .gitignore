@@ -1,7 +1,7 @@
 *.pyc
 *.pytest_cache
 
-logs/*
+*/logs/*
 *.log
 
 *.pkl

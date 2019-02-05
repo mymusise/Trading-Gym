@@ -1,10 +1,9 @@
-from base import train
 from stable_baselines import DQN
 from stable_baselines.deepq.policies import MlpPolicy
 import talib
 import argparse
 import numpy as np
-from base import init_logger
+from base import init_logger, Base
 
 
 def get_technique(_open, close, high, low, volume, timeperiod):
@@ -54,7 +53,7 @@ def get_obs_with_talib(history, *args):
     low = np.array([obs.low for obs in history.obs_list])
     volume = np.array([float(obs.volume) for obs in history.obs_list])
 
-    periods = [10, 15, 20, 30]
+    periods = [10, 20]
     obs = []
     for period in periods:
         features = get_technique(_open, close, high, low, volume, period)
@@ -67,22 +66,26 @@ def test_fake(retrain, render):
     punished = retrain
     if not retrain:
         init_logger()
-    for i in range(20):
-        info = train(data_path, DQN, MlpPolicy,
-                     retrain=retrain,
-                     render=render,
-                     train_steps=20000,
-                     save_path='fake',
-                     env_params={
-                         'punished': punished,
-                         'unit': 50000,
-                         'get_obs_features_func': get_obs_with_talib,
-                         'ops_shape': [4, 20],
-                     },
-                     rl_model_params={'verbose': 1})
+    times = 1 if retrain else 1
+    for i in range(times):
+        trainer = Base()
+        info = trainer.train(data_path, DQN, MlpPolicy,
+                             retrain=retrain,
+                             render=render,
+                             train_steps=200000,
+                             save_path='fake',
+                             env_params={
+                                 'punished': punished,
+                                 'unit': 50000,
+                                 'get_obs_features_func': get_obs_with_talib,
+                                 'ops_shape': [2, 20],
+                                 'start_random': False,
+                             },
+                             rl_model_params={'verbose': 1})
         profit = info[0]['profit']['total']
         if profit > 10000:
             break
+    trainer.plot_results()
 
 
 if __name__ == '__main__':
