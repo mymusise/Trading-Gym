@@ -38,6 +38,7 @@ def get_technique(_open, close, high, low, volume, timeperiod):
     adosc = talib.ADOSC(high, low, close, volume,
                         fastperiod=3, slowperiod=timeperiod)
     obv = talib.OBV(close, volume)
+    return np.nan_to_num([macd[-1], macdsignal[-1]])
     obs = np.nan_to_num(
         [ma[-1], ema[-1], dema[-1], wma[-1], sma[-1], tema[-1],
          trima[-1], sar[-1], apo[-1], adosc[-1], obv[-1], macd[-1],
@@ -53,7 +54,7 @@ def get_obs_with_talib(history, *args):
     low = np.array([obs.low for obs in history.obs_list])
     volume = np.array([float(obs.volume) for obs in history.obs_list])
 
-    periods = [10, 20]
+    periods = [10, 15, 20]
     obs = []
     for period in periods:
         features = get_technique(_open, close, high, low, volume, period)
@@ -72,13 +73,13 @@ def test_fake(retrain, render):
         info = trainer.train(data_path, DQN, MlpPolicy,
                              retrain=retrain,
                              render=render,
-                             train_steps=200000,
+                             train_steps=500000,
                              save_path='fake',
                              env_params={
-                                 'punished': punished,
+                                 'punished': False,
                                  'unit': 50000,
                                  'get_obs_features_func': get_obs_with_talib,
-                                 'ops_shape': [2, 20],
+                                 'ops_shape': [3, 2],
                                  'start_random': False,
                              },
                              rl_model_params={'verbose': 1})

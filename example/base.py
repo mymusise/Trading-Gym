@@ -104,11 +104,11 @@ class Base(object):
             model = RLModel(Policy, env, **rl_model_params)
             model.learn(total_timesteps=train_steps, callback=self.callback)
             model.save(save_path)
-        else:
-            model = RLModel.load(self.best_model_file)
+
+        model = RLModel.load(self.best_model_file)
 
         obs = env.reset()
-        for i in range(5000):
+        for i in range(8000):
             action, _states = model.predict(obs)
             obs, rewards, dones, info = env.step(action)
             if render:
