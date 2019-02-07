@@ -6,24 +6,28 @@ import numpy as np
 from base import init_logger, Base
 
 
-def get_technique(_open, close, high, low, volume, timeperiod):
-    upperband, middleband, lowerband = talib.BBANDS(
-        close, timeperiod=timeperiod, nbdevup=2, nbdevdn=2, matype=0)
-    ma = talib.MA(close, timeperiod=timeperiod)
-    ema = talib.EMA(close, timeperiod=timeperiod)
-    dema = talib.DEMA(close, timeperiod=timeperiod)
-    wma = talib.WMA(close, timeperiod=timeperiod)
-    sma = talib.SMA(close, timeperiod=timeperiod)
-    tema = talib.TEMA(close, timeperiod=timeperiod)
-    trima = talib.TRIMA(close, timeperiod=timeperiod)
-    sar = talib.SAR(high, low)
+def normalize(data, base=100):
+    return [x / base for x in data]
 
-    adx = talib.ADX(high, low, close, timeperiod=timeperiod)
-    adxr = talib.ADXR(high, low, close, timeperiod=timeperiod)
+
+def get_technique(_open, close, high, low, volume, timeperiod):
+    n_close = np.array(normalize(close))
+    n_high = np.array(normalize(high))
+    n_low = np.array(normalize(low))
+    n_volume = np.array(normalize(volume))
+    upperband, middleband, lowerband = talib.BBANDS(
+        n_close, timeperiod=timeperiod, nbdevup=2, nbdevdn=2, matype=0)
+    ma = talib.MA(n_close, timeperiod=timeperiod)
+    ema = talib.EMA(n_close, timeperiod=timeperiod)
+    dema = talib.DEMA(n_close, timeperiod=timeperiod)
+    wma = talib.WMA(n_close, timeperiod=timeperiod)
+    sma = talib.SMA(n_close, timeperiod=timeperiod)
+    tema = talib.TEMA(n_close, timeperiod=timeperiod)
+    trima = talib.TRIMA(n_close, timeperiod=timeperiod)
+    sar = talib.SAR(n_high, n_low)
+
     apo = talib.APO(close, fastperiod=timeperiod / 2,
                     slowperiod=timeperiod, matype=0)
-    cmo = talib.CMO(close, timeperiod=timeperiod)
-    dx = talib.DX(high, low, close, timeperiod=timeperiod)
     macd, macdsignal, macdhist = talib.MACD(
         close,
         fastperiod=timeperiod / 2,
@@ -31,14 +35,11 @@ def get_technique(_open, close, high, low, volume, timeperiod):
         signalperiod=timeperiod / 2 - 1)
     macdfix, macdfixsignal, macdfixhist = talib.MACDFIX(
         close, signalperiod=timeperiod - 2)
-    mfi = talib.MFI(high, low, close, volume, timeperiod=timeperiod)
-    di = talib.MINUS_DI(high, low, close, timeperiod=timeperiod)
 
-    ad = talib.AD(high, low, close, volume)
-    adosc = talib.ADOSC(high, low, close, volume,
+    adosc = talib.ADOSC(n_high, n_low, n_close, n_volume,
                         fastperiod=3, slowperiod=timeperiod)
-    obv = talib.OBV(close, volume)
-    return np.nan_to_num([macd[-1], macdsignal[-1]])
+    obv = talib.OBV(n_close, n_volume)
+    # return np.nan_to_num([macd[-1], macdsignal[-1]])
     obs = np.nan_to_num(
         [ma[-1], ema[-1], dema[-1], wma[-1], sma[-1], tema[-1],
          trima[-1], sar[-1], apo[-1], adosc[-1], obv[-1], macd[-1],
@@ -48,11 +49,12 @@ def get_technique(_open, close, high, low, volume, timeperiod):
 
 
 def get_obs_with_talib(history, *args):
-    _open = np.array([obs.open for obs in history.obs_list])
-    close = np.array([obs.close for obs in history.obs_list])
-    high = np.array([obs.high for obs in history.obs_list])
-    low = np.array([obs.low for obs in history.obs_list])
-    volume = np.array([float(obs.volume) for obs in history.obs_list])
+    _open = np.array(([obs.open for obs in history.obs_list]))
+    close = np.array(([obs.close for obs in history.obs_list]))
+    high = np.array(([obs.high for obs in history.obs_list]))
+    low = np.array(([obs.low for obs in history.obs_list]))
+    volume = np.array(([float(obs.volume)
+                                 for obs in history.obs_list]))
 
     periods = [10, 15, 20]
     obs = []
@@ -73,20 +75,20 @@ def test_fake(retrain, render):
         info = trainer.train(data_path, DQN, MlpPolicy,
                              retrain=retrain,
                              render=render,
-                             train_steps=500000,
+                             train_steps=200000,
                              save_path='fake',
                              env_params={
                                  'punished': False,
                                  'unit': 50000,
                                  'get_obs_features_func': get_obs_with_talib,
-                                 'ops_shape': [3, 2],
+                                 'ops_shape': [3, 20],
                                  'start_random': False,
                              },
-                             rl_model_params={'verbose': 1})
+                             rl_model_params={'verbose': 1, 'learning_rate':5e-7})
         profit = info[0]['profit']['total']
         if profit > 10000:
             break
-    trainer.plot_results()
+    # trainer.plot_results() # have some problem
 
 
 if __name__ == '__main__':
