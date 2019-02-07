@@ -544,10 +544,10 @@ class TradeEnv(GoalEnv):
             self.exchange.start_action)
         return observation
 
-    def render(self):
+    def render(self, mode='human', close=False):
         history = self.data.history
         info = self.exchange.info
-        self._render.render(history, info)
+        self._render.render(history, info, mode=mode, close=close)
 
     def close(self):
         return
