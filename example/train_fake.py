@@ -80,11 +80,12 @@ def test_fake(retrain, render):
                              env_params={
                                  'punished': False,
                                  'unit': 50000,
-                                 'get_obs_features_func': get_obs_with_talib,
+                                 # 'get_obs_features_func': get_obs_with_talib,
+                                 'use_ta': True,
                                  'ops_shape': [3, 20],
                                  'start_random': False,
                              },
-                             rl_model_params={'verbose': 1, 'learning_rate':5e-7})
+                             rl_model_params={'verbose': 1, 'learning_rate':5e-5})
         profit = info[0]['profit']['total']
         if profit > 10000:
             break

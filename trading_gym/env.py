@@ -108,7 +108,8 @@ class DataManager(object):
                  data_func=None,
                  previous_steps=None,
                  history_num=HISTORY_NUM,
-                 start_random=True):
+                 start_random=True,
+                 use_ta=False):
         if data is not None:
             if isinstance(data, list):
                 data = data
@@ -128,6 +129,13 @@ class DataManager(object):
         self.max_steps = len(self.data)
         self.history_num = history_num
         self.start_random = start_random
+
+        if use_ta:
+            self._load_data_with_ta()
+
+    def _load_data_with_ta(self):
+        from .ta import TaFeatures
+        self.ta_data = TaFeatures(self.data)
 
     def _to_observations(self, data):
         for i, item in enumerate(data):
@@ -167,6 +175,10 @@ class DataManager(object):
     @property
     def total(self):
         return self.history + [self.current_step]
+
+    @property
+    def ta_features(self):
+        return self.ta_data.get_feature(self.index)
 
     def step(self):
         observation = self.current_step
@@ -475,19 +487,24 @@ class TradeEnv(GoalEnv):
                  unit=5000,
                  get_obs_features_func=None,
                  ops_shape=None,
-                 start_random=False):
+                 start_random=False,
+                 use_ta=False):
         self.data = DataManager(
             data, data_path, data_func, previous_steps,
-            start_random=start_random)
+            start_random=start_random, use_ta=use_ta)
         self.exchange = Exchange(punished=punished, unit=unit)
         self._render = Render()
+
         self.get_obs_features_func = get_obs_features_func
+        self.use_ta = use_ta
 
         if self.get_obs_features_func is not None:
             if ops_shape is None:
                 raise ValueError(
                     "ops_shape should be given if use get_obs_features_func")
             self.ops_shape = ops_shape
+        elif self.use_ta:
+            self.ops_shape = self.data.ta_data.feature_space
         else:
             self.ops_shape = (HISTORY_NUM + 1, FEATURE_NUM)
 
@@ -503,6 +520,9 @@ class TradeEnv(GoalEnv):
 
         if self.get_obs_features_func is not None:
             return self.get_obs_features_func(history, info)
+
+        if self.use_ta:
+            return self.data.ta_features
 
         obs = self.data.recent_history.to_array(
             base=self.data.first_price,
