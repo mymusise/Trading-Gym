@@ -178,7 +178,7 @@ class DataManager(object):
 
     @property
     def ta_features(self):
-        return self.ta.get_feature(self.index)
+        return self.ta_data.get_feature(self.index)
 
     def step(self):
         observation = self.current_step
