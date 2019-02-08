@@ -107,7 +107,8 @@ class DataManager(object):
                  data_path=None,
                  data_func=None,
                  previous_steps=None,
-                 history_num=HISTORY_NUM):
+                 history_num=HISTORY_NUM,
+                 start_random=True):
         if data is not None:
             if isinstance(data, list):
                 data = data
@@ -126,6 +127,7 @@ class DataManager(object):
         self.index = 0
         self.max_steps = len(self.data)
         self.history_num = history_num
+        self.start_random = start_random
 
     def _to_observations(self, data):
         for i, item in enumerate(data):
@@ -173,7 +175,9 @@ class DataManager(object):
         return observation, done
 
     def reset(self, index=None):
-        if index is None:
+        if not self.start_random:
+            self.index = HISTORY_NUM + 1
+        elif index is None:
             self.index = random.randint(HISTORY_NUM, int(self.max_steps * 0.8))
         else:
             self.index = index
@@ -337,7 +341,7 @@ class Exchange(object):
             observation.latest_price, self.position.amount, action))
         logger.info("fixed_profit: {}, floating_profit: {}".format(
             self.fixed_profit, self.floating_profit))
-        return self.profit / self.unit
+        return self.fixed_profit / self.unit
 
     def reset(self):
         self.__init_data()
@@ -470,8 +474,11 @@ class TradeEnv(GoalEnv):
                  punished=False,
                  unit=5000,
                  get_obs_features_func=None,
-                 ops_shape=None):
-        self.data = DataManager(data, data_path, data_func, previous_steps)
+                 ops_shape=None,
+                 start_random=False):
+        self.data = DataManager(
+            data, data_path, data_func, previous_steps,
+            start_random=start_random)
         self.exchange = Exchange(punished=punished, unit=unit)
         self._render = Render()
         self.get_obs_features_func = get_obs_features_func
@@ -537,10 +544,10 @@ class TradeEnv(GoalEnv):
             self.exchange.start_action)
         return observation
 
-    def render(self):
+    def render(self, mode='human', close=False):
         history = self.data.history
         info = self.exchange.info
-        self._render.render(history, info)
+        self._render.render(history, info, mode=mode, close=close)
 
     def close(self):
         return

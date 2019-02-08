@@ -1,27 +1,21 @@
-from trading_gym.env import TradeEnv
+from trading_gym.env import Exchange, Observation, TradeEnv
 import random
 
 
 def test_exchange():
-    env = TradeEnv(data_path='./data/test_exchange.json',
-                   punished=False, unit=1000)
-    obs = env.reset(index=0)
-    obs, reward, done, info1 = env.step(2)
-    obs, reward, done, info2 = env.step(0)
-    p1 = round(info2['profit']['total'], 1)
-    rate1 = (info2['latest_price'] - info1['latest_price']) / \
-        info1['latest_price']
-    assert p1 == round(rate1 * info2['unit'], 1) - 6
-    obs, reward, done, info3 = env.step(1)
-    obs, reward, done, info4 = env.step(1)
+    unit = 1000
+    ex = Exchange(unit=unit)
+    charge = ex.get_charge(None, None)
+    ex.step(Exchange.ACTION.PUSH, Observation(close=10))
+    assert ex.profit == -charge
+    assert ex.fixed_profit == -charge
 
-    obs, reward, done, info5 = env.step(2)
-    obs, reward, done, info6 = env.step(0)
-    print(info4, info5, info6)
-    rate2 = (info6['latest_price'] - info5['latest_price']) / \
-        info5['latest_price']
-    p2 = round(info6['profit']['total'], 1)
-    assert p2 - p1 == round(rate2 * info6['unit'], 1) - 6
+    ex.step(Exchange.ACTION.HOLD, Observation(close=11))
+    assert ex.floating_profit == unit * 0.1
+    assert ex.profit == -charge + unit * 0.1
+
+    ex.step(Exchange.ACTION.PUT, Observation(close=12))
+    assert ex.profit == -charge + unit * 0.2 - charge
 
 
 def test_render():
