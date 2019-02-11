@@ -109,7 +109,8 @@ class DataManager(object):
                  previous_steps=None,
                  history_num=HISTORY_NUM,
                  start_random=True,
-                 use_ta=False):
+                 use_ta=False,
+                 ta_timeperiods=None):
         if data is not None:
             if isinstance(data, list):
                 data = data
@@ -131,11 +132,11 @@ class DataManager(object):
         self.start_random = start_random
 
         if use_ta:
-            self._load_data_with_ta()
+            self._load_data_with_ta(ta_timeperiods)
 
-    def _load_data_with_ta(self):
+    def _load_data_with_ta(self, ta_timeperiods):
         from .ta import TaFeatures
-        self.ta_data = TaFeatures(self.data)
+        self.ta_data = TaFeatures(self.data, timeperiods=ta_timeperiods)
 
     def _to_observations(self, data):
         for i, item in enumerate(data):
@@ -327,19 +328,26 @@ class Exchange(object):
         """
             rewrite if inneed.
         """
-        return 3
+        if self.position.is_empty and action in self.cost_action:
+            amount = self.unit / observation.latest_price
+            if amount < 100:
+                return 3
+            else:
+                return amount * (0.0039 + 0.0039 + 0.004)
+        else:
+            return 0
 
     def step(self, action, observation, symbol='default'):
         self.observation = observation
         latest_price = observation.latest_price
 
+        charge = self.get_charge(action, observation)
         if action in self.available_actions:
             fixed_profit = self.position.update(
                 action, latest_price, self.unit, observation.index)
-            if action in self.cost_action:
-                fixed_profit -= self.get_charge(action, observation)
         else:
             fixed_profit = 0
+        fixed_profit -= charge
         # if self.punished:
         #     if action == self.punished_action:
         #         fixed_profit -= 2  # make it different
@@ -488,10 +496,13 @@ class TradeEnv(GoalEnv):
                  get_obs_features_func=None,
                  ops_shape=None,
                  start_random=False,
-                 use_ta=False):
+                 use_ta=False,
+                 ta_timeperiods=None):
         self.data = DataManager(
             data, data_path, data_func, previous_steps,
-            start_random=start_random, use_ta=use_ta)
+            start_random=start_random,
+            use_ta=use_ta,
+            ta_timeperiods=ta_timeperiods)
         self.exchange = Exchange(punished=punished, unit=unit)
         self._render = Render()
 
