@@ -25,7 +25,8 @@ def test_fake(retrain, render, is_test):
                                  'unit': 30000,
                                  'use_ta': True,
                                  'start_random': False,
-                                 'ta_timeperiods': [5, 10, 15, 30]
+                                 'ta_timeperiods': [5, 10, 15, 30],
+                                 'add_extra': True
                              },
                              rl_model_params={
                                  'verbose': 1,

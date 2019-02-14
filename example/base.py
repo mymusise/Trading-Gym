@@ -116,10 +116,10 @@ class Base(object):
         obs = env.reset()
         for i in range(8000):
             action, _states = model.predict(obs)
-            obs, rewards, dones, info = env.step(action)
+            obs, rewards, done, info = env.step(action)
             if render:
                 env.render()
-            if dones:
+            if done:
                 break
 
         print(info)
