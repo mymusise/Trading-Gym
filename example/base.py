@@ -5,6 +5,7 @@ sys.path.append("..")
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
+import shutil
 from stable_baselines.common.vec_env import DummyVecEnv
 from trading_gym.env import TradeEnv
 from stable_baselines.bench import Monitor
@@ -101,7 +102,12 @@ class Base(object):
         env = DummyVecEnv([lambda: env])
 
         if retrain:
-            model = RLModel(Policy, env, **rl_model_params)
+            try:
+                shutil.rmtree('./logs/model')
+            except Exception:
+                pass
+            model = RLModel(
+                Policy, env, **rl_model_params)
             model.learn(total_timesteps=train_steps, callback=self.callback)
             model.save(save_path)
 
@@ -110,10 +116,10 @@ class Base(object):
         obs = env.reset()
         for i in range(8000):
             action, _states = model.predict(obs)
-            obs, rewards, dones, info = env.step(action)
+            obs, rewards, done, info = env.step(action)
             if render:
                 env.render()
-            if dones:
+            if done:
                 break
 
         print(info)

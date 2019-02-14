@@ -5,13 +5,17 @@ import numpy as np
 class TaFeatures:
     features = ['ema', 'wma', 'sma', 'sar', 'apo', 'macd',
                 'macdsignal', 'macdhist', 'adosc', 'obv']
+    default_timeperiods = [5, 10, 15, 30]
 
-    def __init__(self, observations, timeperiods=[5, 10, 15, 30]):
+    def __init__(self, observations, timeperiods=None):
         if len(observations) == 0:
             raise ValueError("Observations is empty!")
 
         self.observations = observations
-        self.timeperiods = timeperiods
+        if timeperiods is None:
+            self.timeperiods = self.default_timeperiods
+        else:
+            self.timeperiods = timeperiods
 
         self.init_base_data()
         self.init_index()
@@ -27,7 +31,7 @@ class TaFeatures:
         self.low = np.array([obs.low for obs in self.observations])
         self.volume = np.array([obs.volume for obs in self.observations])
 
-        p_n = self.normalize(self.low.max())
+        p_n = self.normalize(self.high.max())
         self.n_open = np.array(p_n(self.open))
         self.n_close = np.array(p_n(self.close))
         self.n_high = np.array(p_n(self.high))
@@ -80,4 +84,4 @@ class TaFeatures:
         for i, feature_name in enumerate(self.features):
             feature = getattr(self, feature_name)
             features[:, i] = feature[:, index]
-        return features
+        return np.nan_to_num(features)
