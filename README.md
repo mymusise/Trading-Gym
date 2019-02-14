@@ -7,8 +7,23 @@
 ## install 
 
 ```
-pip install trading-gym
+$ pip install trading-gym
 ```
+Creating features with `ta-lib` is suggested, that will improve the performance of agent and make it easy to learn. You should install `ta-lib` before it. Take Ubuntu x64 for example.
+```
+$ wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz 
+$ tar -zxvf ta-lib-0.4.0-src.tar.gz
+$ cd ta-lib/
+$ ./configure --prefix=$PREFIX
+$ make install
+
+$ export TA_LIBRARY_PATH=$PREFIX/lib
+$ export TA_INCLUDE_PATH=$PREFIX/include
+
+$ pip install TA-Lib
+```
+[See more](https://github.com/mrjbq7/ta-lib).
+
 
 ## input format
 
