@@ -54,7 +54,7 @@ def get_obs_with_talib(history, *args):
     high = np.array(([obs.high for obs in history.obs_list]))
     low = np.array(([obs.low for obs in history.obs_list]))
     volume = np.array(([float(obs.volume)
-                                 for obs in history.obs_list]))
+                        for obs in history.obs_list]))
 
     periods = [10, 15, 20]
     obs = []
@@ -73,7 +73,7 @@ def test_fake(retrain, render):
     for i in range(times):
         trainer = Base()
         info = trainer.train(data_path, DQN, MlpPolicy,
-                             retrain=retrain,
+                             retrain=punished,
                              render=render,
                              train_steps=200000,
                              save_path='fake',
@@ -85,7 +85,10 @@ def test_fake(retrain, render):
                                  'ops_shape': [3, 20],
                                  'start_random': False,
                              },
-                             rl_model_params={'verbose': 1, 'learning_rate':5e-5})
+                             rl_model_params={
+                                 'verbose': 1,
+                                 'learning_rate': 5e-5
+                             })
         profit = info[0]['profit']['total']
         if profit > 10000:
             break

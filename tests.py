@@ -5,17 +5,19 @@ import random
 def test_exchange():
     unit = 1000
     ex = Exchange(unit=unit)
-    charge = ex.get_charge(None, None)
+    charge = ex.get_charge(Exchange.ACTION.PUSH, 10)
     ex.step(Exchange.ACTION.PUSH, Observation(close=10))
     assert ex.profit == -charge
     assert ex.fixed_profit == -charge
 
+    charge += ex.get_charge(Exchange.ACTION.HOLD, 11)
     ex.step(Exchange.ACTION.HOLD, Observation(close=11))
     assert ex.floating_profit == unit * 0.1
     assert ex.profit == -charge + unit * 0.1
 
+    charge += ex.get_charge(Exchange.ACTION.PUT, 12)
     ex.step(Exchange.ACTION.PUT, Observation(close=12))
-    assert ex.profit == -charge + unit * 0.2 - charge
+    assert ex.profit == -charge + unit * 0.2
 
 
 def test_render():

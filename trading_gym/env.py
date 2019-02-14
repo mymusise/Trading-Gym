@@ -10,6 +10,7 @@ from matplotlib.ticker import FuncFormatter
 from mpl_finance import candlestick_ochl
 from gym.core import GoalEnv
 from gym import spaces
+from .extra import ExtraFeature
 import logging
 
 
@@ -128,6 +129,7 @@ class DataManager(object):
         self.data = list(self._to_observations(data))
         self.index = 0
         self.max_steps = len(self.data)
+        self.max_price = max([obs.high for obs in self.data])
         self.history_num = history_num
         self.start_random = start_random
 
@@ -227,31 +229,36 @@ class Exchange(object):
         def is_do_short(self):
             return self.amount < 0
 
+        @property
+        def rate(self):
+            if self.is_do_short:
+                diff = abs(self.avg_price) - self.latest_price
+            else:
+                diff = self.latest_price - abs(self.avg_price)
+            return diff / self.avg_price if self.avg_price else 0
+
         def get_profit(self, latest_price, unit):
             if self.is_empty:
                 return 0
             else:
-                rate = 0
-                if self.is_do_short:
-                    diff = abs(self.avg_price) - latest_price
-                else:
-                    diff = latest_price - abs(self.avg_price)
-                rate = diff / self.avg_price
-                profit = rate * unit
+                profit = self.rate * unit
                 return profit
 
-        def update(self, action, latest_price, unit, index):
+        def update(self, action, latest_price):
+            self.latest_price = latest_price
+
+        def step(self, action, unit, index):
             if action != 0 and self.amount == 0:
                 self.created_index = index
             if action * self.amount < 0:
-                profit = self.get_profit(latest_price, unit)
+                profit = self.get_profit(self.latest_price, unit)
             else:
                 profit = 0
 
             amount = action * unit
             if self.amount + amount != 0:
-                self.avg_price = (self.avg_price * self.amount +
-                                  amount * latest_price) / (self.amount + amount)
+                total = self.avg_price * self.amount + amount * self.latest_price
+                self.avg_price = total / (self.amount + amount)
             else:
                 self.avg_price = 0
                 self.created_index = 0
@@ -277,6 +284,10 @@ class Exchange(object):
     @property
     def available_funds(self):
         return self.nav - self.position.principal
+
+    @property
+    def floating_rate(self):
+        return self.position.rate
 
     @property
     def profit(self):
@@ -324,27 +335,28 @@ class Exchange(object):
             latest_price) for position in positions])
         return self.profit + positions_profite
 
-    def get_charge(self, action, observation):
+    def get_charge(self, action, latest_price):
         """
             rewrite if inneed.
         """
         if self.position.is_empty and action in self.cost_action:
-            amount = self.unit / observation.latest_price
+            amount = self.unit / latest_price
             if amount < 100:
-                return 3
+                return 2
             else:
-                return amount * (0.0039 + 0.0039 + 0.004)
+                return amount * (0.0039 + 0.0039)
         else:
             return 0
 
     def step(self, action, observation, symbol='default'):
         self.observation = observation
         latest_price = observation.latest_price
+        self.position.update(action, latest_price)
 
-        charge = self.get_charge(action, observation)
+        charge = self.get_charge(action, latest_price)
         if action in self.available_actions:
-            fixed_profit = self.position.update(
-                action, latest_price, self.unit, observation.index)
+            fixed_profit = self.position.step(
+                action, self.unit, observation.index)
         else:
             fixed_profit = 0
         fixed_profit -= charge
@@ -483,7 +495,7 @@ class Render(object):
         self.arrows = []
 
 
-class TradeEnv(GoalEnv):
+class TradeEnv(GoalEnv, ExtraFeature):
 
     def __init__(self,
                  data=None,
@@ -497,7 +509,8 @@ class TradeEnv(GoalEnv):
                  ops_shape=None,
                  start_random=False,
                  use_ta=False,
-                 ta_timeperiods=None):
+                 ta_timeperiods=None,
+                 add_extra=False):
         self.data = DataManager(
             data, data_path, data_func, previous_steps,
             start_random=start_random,
@@ -508,6 +521,7 @@ class TradeEnv(GoalEnv):
 
         self.get_obs_features_func = get_obs_features_func
         self.use_ta = use_ta
+        self.add_extra = add_extra
 
         if self.get_obs_features_func is not None:
             if ops_shape is None:
@@ -517,7 +531,10 @@ class TradeEnv(GoalEnv):
         elif self.use_ta:
             self.ops_shape = self.data.ta_data.feature_space
         else:
-            self.ops_shape = (HISTORY_NUM + 1, FEATURE_NUM)
+            self.ops_shape = [HISTORY_NUM + 1, FEATURE_NUM]
+
+        if len(self.ops_shape) == 2 and self.add_extra:
+            self.ops_shape[-1] = self.ops_shape[-1] + len(self.ex_obs_name)
 
         self.obs = None
 
@@ -526,23 +543,25 @@ class TradeEnv(GoalEnv):
                                             shape=self.ops_shape,
                                             dtype=np.float32)
 
-    def get_obs_with_history(self, info):
+    def get_obs(self, info):
         history = self.data.recent_history
 
         if self.get_obs_features_func is not None:
-            return self.get_obs_features_func(history, info)
+            obs = self.get_obs_features_func(history, info)
+        elif self.use_ta:
+            obs = self.data.ta_features
+        else:
+            obs = self.data.recent_history.to_array(
+                base=self.data.first_price,
+                extend=[info['avg_price']])
 
-        if self.use_ta:
-            return self.data.ta_features
-
-        obs = self.data.recent_history.to_array(
-            base=self.data.first_price,
-            extend=[info['avg_price']])
-        amount = info['amount']
-        index = info['buy_at'] / self.data.max_steps
-        extends = [amount, index]
-        amount = np.ones([HISTORY_NUM + 1, len(extends)]) * extends
-        obs = np.concatenate((obs, amount), axis=1)
+        if self.add_extra:
+            extra_obs = self.get_extra_features(info)
+            if len(obs.shape) == 2:
+                extra_obs = np.ones([obs.shape[0], len(extra_obs)]) * extra_obs
+                obs = np.concatenate((obs, extra_obs), axis=1)
+            else:
+                obs = np.concatenate((obs, extra_obs))
         return obs
 
     def _step(self, action):
@@ -554,7 +573,7 @@ class TradeEnv(GoalEnv):
         reward = self.exchange.step(action, self.obs)
         info = self.exchange.info
 
-        obs = self.get_obs_with_history(info)
+        obs = self.get_obs(info)
         self.obs, done = self.data.step()
 
         if self.exchange.is_over_loss:
