@@ -90,8 +90,9 @@ obs = env.reset()
 for i in range(8000):
     action, _states = model.predict(obs)
     obs, rewards, done, info = env.step(action)
-    if render:
-        env.render()
+    env.render()
     if done:
         break
 ```
+
+![](https://media.giphy.com/media/4HmjUuzwQytXhDEXYX/giphy.gif)
