@@ -20,7 +20,7 @@ pip install trading-gym
         "high": 10.0,
         "low": 10.0,
         "volume": 10.0,
-        "date": "2019-01-01 10:00"
+        "date": "2019-01-01 09:59"
     },
     {
         "open": 10.1,
@@ -41,10 +41,6 @@ pip install trading-gym
 | PUT    | 0     |
 | HOLD   | 1     |
 | PUSH   | 2     |
-
-
-## observation
-
 
 
 # Examples
@@ -96,3 +92,40 @@ for i in range(8000):
 ```
 
 ![](https://media.giphy.com/media/4HmjUuzwQytXhDEXYX/giphy.gif)
+
+
+# observation
+
+- **native obs**: shape=(*, 51, 6), return 51 history data with OCHL
+```
+env = TradeEnv(data_path=data_path)
+```
+
+- **obs with ta**: shape=(*, 10), return obs using talib.
+- - default feature: `['ema', 'wma', 'sma', 'sar', 'apo', 'macd', 'macdsignal', 'macdhist', 'adosc', 'obv']`
+```
+env = TradeEnv(data_path=data_path, use_ta=True)
+```
+
+- **custom obs**: return custom obs
+```
+def custom_obs_features_func(history, info):
+    obs = []
+    for observation in history:
+        obs.append[observation.close]
+    return obs
+
+
+env = TradeEnv(data_path=data_path,
+               get_obs_features_func=custom_obs_features_func,
+               ops_shape=(1))
+```
+
+
+# Reward
+- reward = fixed_profit
+- profit = fixed_profit + floating_profit
+- floating_profit = (latest_price - avg_price) * unit
+- unit = int(nav / buy_in_price)
+- avg_price = ((buy_in_price * unit) + charge) / unit
+- fixed_profit = SUM([every floating_profit after close position])
