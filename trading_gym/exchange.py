@@ -73,7 +73,27 @@ class Positions:
 
 class Exchange(object):
 
+    """
+
+    Attributes:
+        fixed_profit (int): fixed_profit
+        floating_profit (int): floating_profit
+        nav (int): nav
+        observation (Observation): observation
+        position (Positions): position
+        punished (bool): punished
+        unit (int): unit
+    """
+
     def __init__(self, punished=False, nav=50000, end_loss=None, unit=5000):
+        """
+
+        Args:
+            punished (bool, optional): Do punishe if True
+            nav (int, optional): nav
+            end_loss (None, optional): end_loss
+            unit (int, optional): unit
+        """
         self.nav = nav
         self.punished = punished
         self._end_loss = end_loss
