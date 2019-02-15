@@ -19,9 +19,10 @@ class TradeEnv(GoalEnv, ExtraFeature):
                  previous_steps=60,
                  max_episode=200,
                  punished=False,
-                 unit=5000,
+                 nav=5000,
                  get_obs_features_func=None,
                  ops_shape=None,
+                 get_reward_func=None,
                  start_random=False,
                  use_ta=False,
                  ta_timeperiods=None,
@@ -31,10 +32,11 @@ class TradeEnv(GoalEnv, ExtraFeature):
             start_random=start_random,
             use_ta=use_ta,
             ta_timeperiods=ta_timeperiods)
-        self.exchange = Exchange(punished=punished, unit=unit)
+        self.exchange = Exchange(punished=punished, nav=nav)
         self._render = Render()
 
         self.get_obs_features_func = get_obs_features_func
+        self.get_reward_func = get_reward_func
         self.use_ta = use_ta
         self.add_extra = add_extra
 
@@ -79,13 +81,22 @@ class TradeEnv(GoalEnv, ExtraFeature):
                 obs = np.concatenate((obs, extra_obs))
         return obs
 
+    def get_reward(self, profit):
+        if self.get_reward_func is not None:
+            return self.get_reward_func(self.exchange)
+        else:
+            return profit
+
     def _step(self, action):
         if self.obs is None:
             self.obs, done = self.data.step()
 
         if action in self.exchange.available_actions:
             self._render.take_action(action, self.obs)
-        reward = self.exchange.step(action, self.obs)
+
+        profit = self.exchange.step(action, self.obs)
+        reward = self.get_reward(profit)
+
         info = self.exchange.info
 
         obs = self.get_obs(info)

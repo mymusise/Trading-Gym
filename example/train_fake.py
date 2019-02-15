@@ -23,10 +23,8 @@ def test_fake(retrain, render):
                              save_path='fake',
                              env_params={
                                  'punished': False,
-                                 'unit': 50000,
-                                 # 'get_obs_features_func': get_obs_with_talib,
+                                 'nav': 50000,
                                  'use_ta': True,
-                                 'ops_shape': [3, 20],
                                  'start_random': False,
                              },
                              rl_model_params={
