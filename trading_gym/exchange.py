@@ -42,25 +42,25 @@ class Positions:
             diff = self.latest_price - abs(self.avg_price)
         return diff / self.avg_price if self.avg_price else 0
 
-    def get_profit(self, latest_price, unit):
+    def get_profit(self, latest_price, nav):
         if self.is_empty:
             return 0
         else:
-            profit = self.rate * unit
+            profit = self.rate * nav
             return profit
 
     def update(self, action, latest_price):
         self.latest_price = latest_price
 
-    def step(self, action, unit, index):
+    def step(self, action, nav, index):
         if action != 0 and self.amount == 0:
             self.created_index = index
         if action * self.amount < 0:
-            profit = self.get_profit(self.latest_price, unit)
+            profit = self.get_profit(self.latest_price, nav)
         else:
             profit = 0
 
-        amount = action * unit
+        amount = action * nav
         if self.amount + amount != 0:
             total = self.avg_price * self.amount + amount * self.latest_price
             self.avg_price = total / (self.amount + amount)
@@ -73,7 +73,27 @@ class Positions:
 
 class Exchange(object):
 
+    """
+
+    Attributes:
+        fixed_profit (int): fixed_profit
+        floating_profit (int): floating_profit
+        nav (int): nav
+        observation (Observation): observation
+        position (Positions): position
+        punished (bool): punished
+        unit (int): unit
+    """
+
     def __init__(self, punished=False, nav=50000, end_loss=None, unit=5000):
+        """
+
+        Args:
+            punished (bool, optional): Do punishe if True
+            nav (int, optional): nav
+            end_loss (None, optional): end_loss
+            unit (int, optional): unit
+        """
         self.nav = nav
         self.punished = punished
         self._end_loss = end_loss
@@ -126,7 +146,7 @@ class Exchange(object):
     def end_loss(self):
         if self._end_loss is not None:
             return self._end_loss
-        return - self.unit * 0.2
+        return - self.nav * 0.2
 
     @property
     def is_over_loss(self):
@@ -134,7 +154,7 @@ class Exchange(object):
 
     @property
     def amount(self):
-        return self.position.amount / self.unit
+        return self.position.amount / self.nav
 
     def get_profit(self, observation, symbol='default'):
         latest_price = observation.latest_price
@@ -148,7 +168,7 @@ class Exchange(object):
             rewrite if inneed.
         """
         if self.position.is_empty and action in self.cost_action:
-            amount = self.unit / latest_price
+            amount = self.nav / latest_price
             if amount < 100:
                 return 2
             else:
@@ -164,7 +184,7 @@ class Exchange(object):
         charge = self.get_charge(action, latest_price)
         if action in self.available_actions:
             fixed_profit = self.position.step(
-                action, self.unit, observation.index)
+                action, self.nav, observation.index)
         else:
             fixed_profit = 0
         fixed_profit -= charge
@@ -174,14 +194,14 @@ class Exchange(object):
         #     if action == 0:
         #         fixed_profit -= 2  # make it action
         self.floating_profit = self.position.get_profit(
-            latest_price, self.unit)
+            latest_price, self.nav)
         self.fixed_profit += fixed_profit
 
         logger.info("latest_price:{}, amount:{}, action:{}".format(
             observation.latest_price, self.position.amount, action))
         logger.info("fixed_profit: {}, floating_profit: {}".format(
             self.fixed_profit, self.floating_profit))
-        return self.fixed_profit / self.unit
+        return self.fixed_profit / self.nav
 
     def reset(self):
         self.__init_data()
@@ -191,7 +211,7 @@ class Exchange(object):
         return {
             'index': self.observation.index,
             'date': self.observation.date_string,
-            'unit': self.unit,
+            'nav': self.nav,
             'amount': self.position.amount,
             'avg_price': self.position.avg_price,
             'profit': {

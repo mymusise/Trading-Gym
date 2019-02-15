@@ -22,7 +22,7 @@ def test_fake(retrain, render, is_test):
                              save_path='fake',
                              env_params={
                                  'punished': False,
-                                 'unit': 30000,
+                                 'nav': 30000,
                                  'use_ta': True,
                                  'start_random': False,
                                  'ta_timeperiods': [5, 10, 15, 30],

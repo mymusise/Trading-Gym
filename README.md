@@ -122,7 +122,10 @@ env = TradeEnv(data_path=data_path)
 env = TradeEnv(data_path=data_path, use_ta=True)
 ```
 
-- **custom obs**: return custom obs
+
+# Custom
+
+### **custom obs**
 ```
 def custom_obs_features_func(history, info):
     obs = []
@@ -135,6 +138,17 @@ env = TradeEnv(data_path=data_path,
                get_obs_features_func=custom_obs_features_func,
                ops_shape=(1))
 ```
+
+### **custom reward**
+```
+def custom_reward_func(exchange):
+    return exchange.profit
+
+
+env = TradeEnv(data_path=data_path,
+               get_reward_func=custom_reward_func)
+```
+Param `exchange` is entity of [Exchange](docs/exchange.md)
 
 
 # Reward
