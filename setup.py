@@ -4,6 +4,7 @@ from setuptools import setup
 requires = [
     "gym",
     "numpy",
+    "pandas",
     "matplotlib",
     "mpl-finance",
 ]

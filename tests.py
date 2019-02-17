@@ -19,6 +19,8 @@ def test_exchange():
     ex.step(ACTION.PUT, Observation(close=12))
     assert ex.profit == -charge + nav * 0.2
 
+    print(ex.transaction)
+
 
 def test_render():
     env = TradeEnv(data_path='./data/test_exchange.json')
