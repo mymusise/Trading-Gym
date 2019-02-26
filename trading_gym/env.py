@@ -3,7 +3,7 @@ from gym.core import GoalEnv
 from gym import spaces
 from .exchange import Exchange
 from .render import Render
-from .inputs import DataManager, ExtraFeature, HISTORY_NUM, FEATURE_NUM
+from .inputs import DataManager, ExtraFeature
 import logging
 
 
@@ -26,12 +26,14 @@ class TradeEnv(GoalEnv, ExtraFeature):
                  start_random=False,
                  use_ta=False,
                  ta_timeperiods=None,
-                 add_extra=False):
+                 add_extra=False,
+                 history_num=50):
         self.data = DataManager(
             data, data_path, data_func, previous_steps,
             start_random=start_random,
             use_ta=use_ta,
-            ta_timeperiods=ta_timeperiods)
+            ta_timeperiods=ta_timeperiods,
+            history_num=history_num)
         self.exchange = Exchange(punished=punished, nav=nav)
         self._render = Render()
 
@@ -48,7 +50,7 @@ class TradeEnv(GoalEnv, ExtraFeature):
         elif self.use_ta:
             self.ops_shape = self.data.ta_data.feature_space
         else:
-            self.ops_shape = [HISTORY_NUM + 1, FEATURE_NUM]
+            self.ops_shape = self.data.default_space
 
         if len(self.ops_shape) == 2 and self.add_extra:
             self.ops_shape[-1] = self.ops_shape[-1] + len(self.ex_obs_name)
