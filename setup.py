@@ -4,12 +4,13 @@ from setuptools import setup
 requires = [
     "gym",
     "numpy",
+    "pandas",
     "matplotlib",
     "mpl-finance",
 ]
 
 setup(name='trading-gym',
-      version='0.1.5',
+      version='0.1.6',
       description='A gym tool for trading.',
       url='https://github.com/mymusise/Trading-Gym',
       author='mymusise',

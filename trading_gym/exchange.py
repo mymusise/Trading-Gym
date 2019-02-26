@@ -1,4 +1,5 @@
 import logging
+import pandas as pd
 
 
 logger = logging.getLogger('trading-gym')
@@ -71,7 +72,29 @@ class Positions:
         return profit
 
 
-class Exchange(object):
+class Transaction(object):
+    _columns = ["index", "time", "latest_price", "action", "amount", "profit",
+                "fixed_profit", "floating_profit"]
+
+    def init__transaction(self):
+        self.transaction = pd.DataFrame(columns=self._columns)
+
+    def add_transaction(self, obs, action):
+        current = pd.DataFrame({
+            'index': [obs.index],
+            'time': [obs.date_string],
+            'latest_price': [obs.latest_price],
+            'action': [action],
+            'amount': [self.amount],
+            'profit': [self.profit],
+            'fixed_profit': [self.fixed_profit],
+            'floating_profit': [self.floating_profit]
+        })
+        self.transaction = pd.concat(
+            [self.transaction, current], ignore_index=True)
+
+
+class Exchange(Transaction):
 
     """
 
@@ -103,7 +126,7 @@ class Exchange(object):
     def __init_data(self):
         self.position = Positions()
         self.fixed_profit = 0
-        self.floating_profit = 0
+        self.init__transaction()
 
     @property
     def start_action(self):
@@ -156,6 +179,10 @@ class Exchange(object):
     def amount(self):
         return self.position.amount / self.nav
 
+    @property
+    def floating_profit(self):
+        return self.position.get_profit(self.latest_price, self.nav)
+
     def get_profit(self, observation, symbol='default'):
         latest_price = observation.latest_price
         positions = self.positions.values()
@@ -178,29 +205,30 @@ class Exchange(object):
 
     def step(self, action, observation, symbol='default'):
         self.observation = observation
-        latest_price = observation.latest_price
-        self.position.update(action, latest_price)
+        self.latest_price = observation.latest_price
+        self.position.update(action, self.latest_price)
 
-        charge = self.get_charge(action, latest_price)
+        charge = self.get_charge(action, self.latest_price)
         if action in self.available_actions:
             fixed_profit = self.position.step(
                 action, self.nav, observation.index)
+            fixed_profit -= charge
+            self.fixed_profit += fixed_profit
+
+            self.add_transaction(observation, action)
         else:
             fixed_profit = 0
-        fixed_profit -= charge
         # if self.punished:
         #     if action == self.punished_action:
         #         fixed_profit -= 2  # make it different
         #     if action == 0:
         #         fixed_profit -= 2  # make it action
-        self.floating_profit = self.position.get_profit(
-            latest_price, self.nav)
-        self.fixed_profit += fixed_profit
 
-        logger.info("latest_price:{}, amount:{}, action:{}".format(
-            observation.latest_price, self.position.amount, action))
-        logger.info("fixed_profit: {}, floating_profit: {}".format(
-            self.fixed_profit, self.floating_profit))
+        logger.info(f"latest_price:{observation.latest_price}, "
+                    f"amount:{self.position.amount}, "
+                    f"action:{action}")
+        logger.info(f"fixed_profit: {self.fixed_profit}, "
+                    f"floating_profit: {self.floating_profit}")
         return self.fixed_profit / self.nav
 
     def reset(self):

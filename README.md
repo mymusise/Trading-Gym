@@ -25,39 +25,6 @@ $ pip install TA-Lib
 [See more](https://github.com/mrjbq7/ta-lib).
 
 
-## input format
-
-```
-[
-    {
-        "open": 10.0,
-        "close": 10.0,
-        "high": 10.0,
-        "low": 10.0,
-        "volume": 10.0,
-        "date": "2019-01-01 09:59"
-    },
-    {
-        "open": 10.1,
-        "close": 10.1,
-        "high": 10.1,
-        "low": 10.1,
-        "volume": 10.1,
-        "date": "2019-01-01 10:00"
-    }
-]
-```
-
-
-## actions
-
-| Action | Value |
-| ------ | ----- |
-| PUT    | 0     |
-| HOLD   | 1     |
-| PUSH   | 2     |
-
-
 # Examples
 
 
@@ -109,7 +76,41 @@ for i in range(8000):
 ![](https://media.giphy.com/media/4HmjUuzwQytXhDEXYX/giphy.gif)
 
 
-# observation
+## input format
+
+```
+[
+    {
+        "open": 10.0,
+        "close": 10.0,
+        "high": 10.0,
+        "low": 10.0,
+        "volume": 10.0,
+        "date": "2019-01-01 09:59"
+    },
+    {
+        "open": 10.1,
+        "close": 10.1,
+        "high": 10.1,
+        "low": 10.1,
+        "volume": 10.1,
+        "date": "2019-01-01 10:00"
+    }
+]
+```
+
+
+## actions
+
+| Action | Value |
+| ------ | ----- |
+| PUT    | 0     |
+| HOLD   | 1     |
+| PUSH   | 2     |
+
+
+
+## observation
 
 - **native obs**: shape=(*, 51, 6), return 51 history data with OCHL
 ```

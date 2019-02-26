@@ -7,10 +7,6 @@ import matplotlib.dates as mdates
 import numpy as np
 
 
-HISTORY_NUM = 50
-FEATURE_NUM = 8
-
-
 class Observation(object):
     __slots__ = ["open", "close", "high", "low", "index", "volume",
                  "date", "date_string", "format_string"]
@@ -75,8 +71,9 @@ class Observation(object):
 
 class History(object):
 
-    def __init__(self, obs_list):
+    def __init__(self, obs_list, history_num):
         self.obs_list = obs_list
+        self.history_num = history_num
 
     def normalize(self, base):
         def __nor(array):
@@ -85,7 +82,8 @@ class History(object):
 
     def to_array(self, base, extend=[]):
         # base = self.obs_list[-1].close if self.obs_list else 1
-        history = np.zeros([HISTORY_NUM + 1, Observation.N], dtype=float)
+
+        history = np.zeros([self.history_num + 1, Observation.N], dtype=float)
         normalize_func = self.normalize(base)
         for i, obs in enumerate(self.obs_list):
             data = obs.to_array(extend=extend)
@@ -99,7 +97,7 @@ class DataManager(object):
                  data_path=None,
                  data_func=None,
                  previous_steps=None,
-                 history_num=HISTORY_NUM,
+                 history_num=50,
                  start_random=True,
                  use_ta=False,
                  ta_timeperiods=None):
@@ -122,6 +120,7 @@ class DataManager(object):
         self.max_steps = len(self.data)
         self.max_price = max([obs.high for obs in self.data])
         self.history_num = history_num
+        self.feature_num = Observation.N
         self.start_random = start_random
 
         if use_ta:
@@ -151,6 +150,10 @@ class DataManager(object):
         return data
 
     @property
+    def default_space(self):
+        return [self.history_num, self.feature_num]
+
+    @property
     def first_price(self):
         return self.data[0].close
 
@@ -164,7 +167,8 @@ class DataManager(object):
 
     @property
     def recent_history(self):
-        return History(self.data[self.index - self.history_num:self.index + 1])
+        return History(self.data[self.index - self.history_num:self.index + 1],
+                       history_num=self.history_num)
 
     @property
     def total(self):
@@ -182,9 +186,10 @@ class DataManager(object):
 
     def reset(self, index=None):
         if not self.start_random:
-            self.index = HISTORY_NUM + 1
+            self.index = self.history_num + 1
         elif index is None:
-            self.index = random.randint(HISTORY_NUM, int(self.max_steps * 0.8))
+            self.index = random.randint(self.history_num,
+                                        int(self.max_steps * 0.8))
         else:
             self.index = index
 
