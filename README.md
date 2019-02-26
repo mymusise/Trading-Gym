@@ -3,6 +3,8 @@
 
 ![Build Status](https://travis-ci.org/mymusise/Trading-Gym.svg?branch=master)
 
+Trading-Gym is a trading environment base on Gym. For those who want to custom everything. 
+
 
 ## install 
 
@@ -116,7 +118,6 @@ for i in range(8000):
 ```
 env = TradeEnv(data_path=data_path)
 ```
-
 - **obs with ta**: shape=(*, 10), return obs using talib.
 - - default feature: `['ema', 'wma', 'sma', 'sar', 'apo', 'macd', 'macdsignal', 'macdhist', 'adosc', 'obv']`
 ```
