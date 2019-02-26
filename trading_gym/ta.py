@@ -4,7 +4,7 @@ import numpy as np
 
 class TaFeatures:
     features = ['ema', 'wma', 'sma', 'sar', 'apo', 'macd',
-                'macdsignal', 'macdhist', 'adosc', 'obv']
+                'macdsignal', 'macdhist', 'adosc', 'obv', 'rsi']
     default_timeperiods = [5, 10, 15, 30]
 
     def __init__(self, observations, timeperiods=None):
@@ -72,6 +72,8 @@ class TaFeatures:
                                            fastperiod=3, slowperiod=t)
                                for t in self.timeperiods])
         self.obv = np.array([talib.OBV(self.n_close, self.n_volume)
+                             for t in self.timeperiods])
+        self.rsi = np.array([talib.OBV(self.n_close, timeperiod=t)
                              for t in self.timeperiods])
 
     def normalize(self, base):
