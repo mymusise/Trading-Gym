@@ -30,7 +30,6 @@ def test_render():
     for i in range(500):
         action = random.sample([0, 1, 2], 1)[0]
         obs, reward, done, info = env.step(action)
-        print(obs)
         env.render()
         if done:
             break
