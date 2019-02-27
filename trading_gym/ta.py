@@ -73,7 +73,7 @@ class TaFeatures:
                                for t in self.timeperiods])
         self.obv = np.array([talib.OBV(self.n_close, self.n_volume)
                              for t in self.timeperiods])
-        self.rsi = np.array([talib.OBV(self.n_close, timeperiod=t)
+        self.rsi = np.array([talib.RSI(self.n_close, timeperiod=t)
                              for t in self.timeperiods])
 
     def normalize(self, base):
