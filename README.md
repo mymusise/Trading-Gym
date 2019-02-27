@@ -130,10 +130,8 @@ env = TradeEnv(data_path=data_path, use_ta=True)
 ### **custom obs**
 ```
 def custom_obs_features_func(history, info):
-    obs = []
-    for observation in history:
-        obs.append[observation.close]
-    return obs
+    close = [obs.close for obs in history]
+    return close
 
 
 env = TradeEnv(data_path=data_path,
