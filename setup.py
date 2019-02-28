@@ -10,7 +10,7 @@ requires = [
 ]
 
 setup(name='trading-gym',
-      version='0.1.7',
+      version='0.1.8',
       description='A gym tool for trading.',
       url='https://github.com/mymusise/Trading-Gym',
       author='mymusise',

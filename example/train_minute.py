@@ -23,9 +23,11 @@ def test_fake(retrain, render, is_test):
                              env_params={
                                  'punished': False,
                                  'nav': 30000,
-                                 'use_ta': True,
-                                 'start_random': False,
-                                 'ta_timeperiods': [5, 10, 15, 30],
+                                 'data_kwargs': {
+                                     'use_ta': True,
+                                     'start_random': False,
+                                     'ta_timeperiods': [5, 10, 15, 30],
+                                 },
                                  'add_extra': True
                              },
                              rl_model_params={

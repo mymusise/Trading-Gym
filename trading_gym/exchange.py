@@ -183,12 +183,12 @@ class Exchange(Transaction):
     def floating_profit(self):
         return self.position.get_profit(self.latest_price, self.nav)
 
-    def get_profit(self, observation, symbol='default'):
-        latest_price = observation.latest_price
-        positions = self.positions.values()
-        positions_profite = sum([position.get_profit(
-            latest_price) for position in positions])
-        return self.profit + positions_profite
+    # def get_profit(self, observation, symbol='default'):        
+    #     latest_price = observation.latest_price
+    #     positions = self.positions.values()
+    #     positions_profite = sum([position.get_profit(
+    #         latest_price) for position in positions])
+    #     return self.profit + positions_profite
 
     def get_charge(self, action, latest_price):
         """

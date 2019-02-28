@@ -24,8 +24,10 @@ def test_fake(retrain, render):
                              env_params={
                                  'punished': False,
                                  'nav': 50000,
-                                 'use_ta': True,
-                                 'start_random': False,
+                                 'data_kwargs': {
+                                     'use_ta': True,
+                                     'start_random': False
+                                 },
                              },
                              rl_model_params={
                                  'verbose': 1,

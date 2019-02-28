@@ -23,23 +23,16 @@ class TradeEnv(GoalEnv, ExtraFeature):
                  get_obs_features_func=None,
                  ops_shape=None,
                  get_reward_func=None,
-                 start_random=False,
-                 use_ta=False,
-                 ta_timeperiods=None,
                  add_extra=False,
-                 history_num=50):
+                 data_kwargs={}):
         self.data = DataManager(
             data, data_path, data_func, previous_steps,
-            start_random=start_random,
-            use_ta=use_ta,
-            ta_timeperiods=ta_timeperiods,
-            history_num=history_num)
+            **data_kwargs)
         self.exchange = Exchange(punished=punished, nav=nav)
         self._render = Render()
 
         self.get_obs_features_func = get_obs_features_func
         self.get_reward_func = get_reward_func
-        self.use_ta = use_ta
         self.add_extra = add_extra
 
         if self.get_obs_features_func is not None:
@@ -47,7 +40,7 @@ class TradeEnv(GoalEnv, ExtraFeature):
                 raise ValueError(
                     "ops_shape should be given if use get_obs_features_func")
             self.ops_shape = ops_shape
-        elif self.use_ta:
+        elif self.data.use_ta:
             self.ops_shape = self.data.ta_data.feature_space
         else:
             self.ops_shape = self.data.default_space
@@ -67,7 +60,7 @@ class TradeEnv(GoalEnv, ExtraFeature):
 
         if self.get_obs_features_func is not None:
             obs = self.get_obs_features_func(history, info)
-        elif self.use_ta:
+        elif self.data.use_ta:
             obs = self.data.ta_features
         else:
             obs = self.data.recent_history.to_array(
@@ -118,7 +111,7 @@ class TradeEnv(GoalEnv, ExtraFeature):
         self.data.reset(index)
         self.exchange.reset()
         self._render.reset()
-        observation, reward, done, info = self._step(
+        observation, _, _, _ = self._step(
             self.exchange.start_action)
         return observation
 

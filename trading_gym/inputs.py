@@ -100,7 +100,8 @@ class DataManager(object):
                  history_num=50,
                  start_random=True,
                  use_ta=False,
-                 ta_timeperiods=None):
+                 ta_timeperiods=None,
+                 ta_class=None):
         if data is not None:
             if isinstance(data, list):
                 data = data
@@ -122,13 +123,17 @@ class DataManager(object):
         self.history_num = history_num
         self.feature_num = Observation.N
         self.start_random = start_random
+        self.ta_class = ta_class
+        self.use_ta = use_ta
 
-        if use_ta:
+        if self.use_ta:
             self._load_data_with_ta(ta_timeperiods)
 
     def _load_data_with_ta(self, ta_timeperiods):
-        from .ta import TaFeatures
-        self.ta_data = TaFeatures(self.data, timeperiods=ta_timeperiods)
+        if self.ta_class is None:
+            from .ta import TaFeatures
+            self.ta_class = TaFeatures
+        self.ta_data = self.ta_class(self.data, timeperiods=ta_timeperiods)
 
     def _to_observations(self, data):
         for i, item in enumerate(data):
