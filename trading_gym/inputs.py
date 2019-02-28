@@ -98,7 +98,7 @@ class DataManager(object):
                  data_func=None,
                  previous_steps=None,
                  history_num=50,
-                 start_random=True,
+                 start_random=False,
                  use_ta=False,
                  ta_timeperiods=None,
                  ta_class=None):
@@ -156,7 +156,7 @@ class DataManager(object):
 
     @property
     def default_space(self):
-        return [self.history_num, self.feature_num]
+        return [self.history_num + 1, self.feature_num]
 
     @property
     def first_price(self):
@@ -194,7 +194,7 @@ class DataManager(object):
             self.index = self.history_num + 1
         elif index is None:
             self.index = random.randint(self.history_num,
-                                        int(self.max_steps * 0.8))
+                                        int(self.max_steps * 0.9))
         else:
             self.index = index
 

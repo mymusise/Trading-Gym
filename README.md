@@ -59,7 +59,7 @@ from stable_baselines.deepq.policies import MlpPolicy
 
 
 data_path = './data/fake_sin_data.json'
-env = TradeEnv(data_path=data_path, unit=50000, use_ta=True)
+env = TradeEnv(data_path=data_path, unit=50000, data_kwargs={'use_ta': True})
 env = DummyVecEnv([lambda: env])
 
 model = DQN(MlpPolicy, env, verbose=2, learning_rate=1e-5)
@@ -121,7 +121,7 @@ env = TradeEnv(data_path=data_path)
 - **obs with ta**: shape=(*, 10), return obs using talib.
 - - default feature: `['ema', 'wma', 'sma', 'sar', 'apo', 'macd', 'macdsignal', 'macdhist', 'adosc', 'obv']`
 ```
-env = TradeEnv(data_path=data_path, use_ta=True)
+env = TradeEnv(data_path=data_path, data_kwargs={'use_ta': True})
 ```
 
 
