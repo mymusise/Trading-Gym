@@ -8,6 +8,6 @@ Attributes:
         floating_profit (int): floating_profit
         nav (int): nav
         observation (Observation): observation
-        position (Positions): position
+        position (Position): position
         punished (bool): punished
         unit (int): unit

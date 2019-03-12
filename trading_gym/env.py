@@ -24,11 +24,12 @@ class TradeEnv(GoalEnv, ExtraFeature):
                  ops_shape=None,
                  get_reward_func=None,
                  add_extra=False,
-                 data_kwargs={}):
+                 data_kwargs={},
+                 exchange_kwargs={}):
         self.data = DataManager(
             data, data_path, data_func, previous_steps,
             **data_kwargs)
-        self.exchange = Exchange(punished=punished, nav=nav)
+        self.exchange = Exchange(punished=punished, nav=nav, **exchange_kwargs)
         self._render = Render()
 
         self.get_obs_features_func = get_obs_features_func

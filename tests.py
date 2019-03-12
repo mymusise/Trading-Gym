@@ -1,4 +1,5 @@
-from trading_gym import ACTION, Observation, Exchange, TradeEnv
+from trading_gym import ACTION, Observation, Exchange, TradeEnv, MultiExchange
+from datetime import date
 import random
 
 
@@ -44,14 +45,49 @@ def test_custom_reward_func():
     obs, reward, done, info = env.step(ACTION.PUSH)
     assert reward == 2
 
-    def reward_fn(exchange):
+    def reward_fn2(exchange):
         return exchange.floating_profit
     env = TradeEnv(data_path='./data/test_exchange.json',
-                   get_reward_func=reward_fn)
+                   get_reward_func=reward_fn2)
     env.reset()
     obs, reward, done, info = env.step(ACTION.PUSH)
     obs, reward, done, info = env.step(ACTION.HOLD)
     assert reward == env.exchange.floating_profit
+
+
+def test_multi_exchange():
+    exchange = MultiExchange(nav=5000)
+    exchange.step(ACTION.HOLD, Observation(
+        close=12, date="2019-1-10"), 'GOOG')
+    exchange.step(ACTION.PUSH, Observation(
+        close=12.5, date="2019-1-11"), 'GOOG')
+    exchange.step(ACTION.PUT, Observation(
+        close=12.9, date="2019-1-11"), 'GOOG')
+    exchange.step(ACTION.PUSH, Observation(
+        close=11.9, date="2019-1-12"), 'AAPL')
+    exchange.step(ACTION.PUT, Observation(
+        close=10.9, date="2019-1-12"), 'AAPL')
+    exchange.step(ACTION.PUSH, Observation(
+        close=11.9, date="2019-2-11"), 'AAPL')
+    exchange.step(ACTION.PUT, Observation(
+        close=11.2, date="2019-2-11"), 'AAPL')
+
+    exchange.step(ACTION.PUSH, Observation(
+        close=30.9, date="2019-1-05"), 'GG')
+    exchange.step(ACTION.PUSH, Observation(
+        close=30.9, date="2019-1-05"), 'GG')
+    exchange.step(ACTION.PUT, Observation(
+        close=33.9, date="2019-1-05"), 'GG')
+    exchange.step(ACTION.PUT, Observation(
+        close=9.9, date="2019-1-06"), 'BF.B')
+    exchange.step(ACTION.PUT, Observation(
+        close=10.2, date="2019-1-06"), 'BF.B')
+    exchange.step(ACTION.PUSH, Observation(
+        close=9.2, date="2019-1-06"), 'BF.B')
+    exchange.step(ACTION.PUSH, Observation(
+        close=9.2, date="2019-1-06"), 'BF.B')
+    print(exchange.transaction)
+    exchange.report()
 
 
 if __name__ == '__main__':
