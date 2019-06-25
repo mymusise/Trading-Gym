@@ -41,7 +41,7 @@ class Observation(object):
             date_format = ''
 
         if t_f == 2:
-            time_format = '%H:%M:%s'
+            time_format = '%H:%M:%S'
         elif t_f == 1:
             time_format = '%H:%M'
         else:
